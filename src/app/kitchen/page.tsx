@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label';
 import { soundAlerts } from '@/lib/audio-alerts';
 import { formatTime } from '@/lib/formatters';
 import { toast } from 'sonner';
+import { KOTPrintModal } from '@/components/pos/kot-print-modal';
 
 export default function KitchenDisplayPage() {
   const [kots, setKots] = useState<any[]>([]);
@@ -38,6 +39,7 @@ export default function KitchenDisplayPage() {
   // Cancel Item Dialog
   const [cancellingItemData, setCancellingItemData] = useState<{ kotId: string; itemId: string; itemName: string } | null>(null);
   const [cancelReason, setCancelReason] = useState('Ingredient unavailable');
+  const [selectedKotForPrint, setSelectedKotForPrint] = useState<any | null>(null);
 
   // Live timer tick every second
   useEffect(() => {
@@ -137,7 +139,10 @@ export default function KitchenDisplayPage() {
       const data = await res.json();
       if (data.success) {
         toast.success(data.message);
-        window.print();
+        const targetKot = kots.find((k) => k.id === kotId);
+        if (targetKot) {
+          setSelectedKotForPrint(targetKot);
+        }
       }
     } catch (err) {
       toast.error('Reprint failed');
@@ -511,6 +516,13 @@ export default function KitchenDisplayPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* KOT Slip Thermal Print / Preview Modal */}
+      <KOTPrintModal
+        isOpen={!!selectedKotForPrint}
+        onClose={() => setSelectedKotForPrint(null)}
+        kotData={selectedKotForPrint}
+      />
     </AppShell>
   );
 }

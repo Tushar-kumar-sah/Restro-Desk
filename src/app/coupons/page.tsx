@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatCurrency, formatIndianDate } from '@/lib/formatters';
+import { printThermalReceipt } from '@/lib/printer';
 import {
   Ticket,
   Plus,
@@ -80,6 +81,7 @@ export default function CouponsPage() {
   const [qrModalCoupon, setQrModalCoupon] = useState<CouponItem | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const flyerRef = useRef<HTMLDivElement>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -746,18 +748,21 @@ export default function CouponsPage() {
         {/* QR CODE FLYER MODAL */}
         {/* ========================================================================= */}
         <Dialog open={!!qrModalCoupon} onOpenChange={(open) => !open && setQrModalCoupon(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md print:max-w-none print:p-0 print:border-none print:shadow-none print:bg-white">
             {qrModalCoupon && (
               <div className="text-center space-y-4 py-2">
-                <div className="p-6 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl shadow-lg relative overflow-hidden">
-                  <div className="text-xs uppercase tracking-widest text-emerald-200 font-bold mb-1">
+                <div
+                  ref={flyerRef}
+                  className="p-6 bg-gradient-to-br from-emerald-600 to-teal-800 text-white rounded-2xl shadow-lg relative overflow-hidden print-only print:p-4 print:text-black print:bg-white print:border print:border-black"
+                >
+                  <div className="text-xs uppercase tracking-widest text-emerald-200 font-bold mb-1 print:text-black">
                     RestoDesk Exclusive Offer
                   </div>
                   <h3 className="text-xl font-bold">{qrModalCoupon.title}</h3>
-                  <p className="text-xs text-white/80 mt-1">{qrModalCoupon.description}</p>
+                  <p className="text-xs text-white/80 mt-1 print:text-gray-700">{qrModalCoupon.description}</p>
 
                   {/* Scannable simulated QR Matrix Card */}
-                  <div className="my-5 p-4 bg-white rounded-xl inline-block shadow-md">
+                  <div className="my-5 p-4 bg-white rounded-xl inline-block shadow-md print:shadow-none print:border print:border-black">
                     <div className="w-36 h-36 bg-neutral-900 rounded-lg p-2 flex flex-col justify-between">
                       <div className="flex justify-between">
                         <div className="w-8 h-8 border-4 border-white bg-black rounded" />
@@ -773,21 +778,24 @@ export default function CouponsPage() {
                     </div>
                   </div>
 
-                  <div className="font-mono text-2xl font-black tracking-widest bg-white/20 py-1.5 px-4 rounded-lg inline-block border border-white/30 backdrop-blur-sm">
+                  <div className="font-mono text-2xl font-black tracking-widest bg-white/20 py-1.5 px-4 rounded-lg inline-block border border-white/30 backdrop-blur-sm print:bg-gray-100 print:text-black print:border-black">
                     {qrModalCoupon.code}
                   </div>
 
-                  <p className="text-[11px] text-white/70 mt-3">
+                  <p className="text-[11px] text-white/70 mt-3 print:text-gray-700">
                     Valid on min order of {formatCurrency(qrModalCoupon.minBillAmount)} till{' '}
                     {formatIndianDate(qrModalCoupon.validTo)}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-3 no-print">
                   <Button
                     variant="outline"
                     onClick={() => {
-                      window.print();
+                      printThermalReceipt(flyerRef.current, {
+                        paperWidth: '80mm',
+                        title: `Flyer_${qrModalCoupon.code}`,
+                      });
                     }}
                     className="gap-2 text-xs"
                   >

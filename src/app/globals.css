@@ -96,42 +96,106 @@
 /* THERMAL PRINTER PRINT STYLES (58mm & 80mm)           */
 /* ---------------------------------------------------- */
 @media print {
+  @page {
+    size: auto;
+    margin: 0mm;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Unclip all dialog overlays, modals, and portals during print */
+  [data-radix-portal],
+  [role="dialog"],
+  div[data-state="open"],
+  [data-radix-dialog-content] {
+    position: static !important;
+    transform: none !important;
+    max-height: none !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  /* Hide regular UI elements */
   body * {
     visibility: hidden;
   }
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Make printable receipts fully visible and flowing */
   .print-only,
   .print-only * {
-    visibility: visible;
-  }
-  .no-print {
-    display: none !important;
+    visibility: visible !important;
   }
 
   /* 80mm standard paper width */
   .thermal-receipt-80mm {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 72mm;
-    margin: 0;
-    padding: 2mm;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 11px;
-    line-height: 1.25;
-    color: #000;
+    position: static !important;
+    display: block !important;
+    margin: 0 auto !important;
+    width: 76mm !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 2mm 3mm !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    page-break-after: avoid;
+    break-after: avoid;
   }
 
   /* 58mm compact paper width */
   .thermal-receipt-58mm {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 48mm;
-    margin: 0;
-    padding: 1mm;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 9px;
-    line-height: 1.2;
-    color: #000;
+    position: static !important;
+    display: block !important;
+    margin: 0 auto !important;
+    width: 52mm !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 1mm 2mm !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 9px !important;
+    line-height: 1.2 !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    page-break-after: avoid;
+    break-after: avoid;
   }
 }

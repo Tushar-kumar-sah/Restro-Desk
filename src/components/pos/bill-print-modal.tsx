@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDateTime } from '@/lib/formatters';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
+import { printThermalReceipt } from '@/lib/printer';
 
 interface BillPrintModalProps {
   isOpen: boolean;
@@ -23,7 +24,10 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
   const paperWidth = selectedOutlet?.printerPaperWidth || '80mm';
 
   const handlePrint = () => {
-    window.print();
+    printThermalReceipt(printRef.current, {
+      paperWidth: paperWidth as '58mm' | '80mm',
+      title: `Tax_Invoice_${order.orderNumber || 'Receipt'}`,
+    });
   };
 
   const handleSendWhatsApp = () => {
@@ -32,8 +36,8 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md sm:rounded-2xl p-0 overflow-hidden border shadow-2xl">
-        <DialogHeader className="p-4 border-b bg-muted/20 flex flex-row items-center justify-between">
+      <DialogContent className="max-w-md sm:rounded-2xl p-0 overflow-hidden border shadow-2xl print:max-w-none print:max-h-none print:overflow-visible print:border-none print:shadow-none print:bg-white print:p-0">
+        <DialogHeader className="p-4 border-b bg-muted/20 flex flex-row items-center justify-between no-print">
           <div>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <Printer className="h-4 w-4 text-orange-600" />
@@ -46,7 +50,7 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
         </DialogHeader>
 
         {/* Printable Receipt Paper Container */}
-        <div className="p-6 bg-slate-100 dark:bg-zinc-950 flex justify-center max-h-[65vh] overflow-y-auto">
+        <div className="p-6 bg-slate-100 dark:bg-zinc-950 flex justify-center max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0 print:bg-white">
           <div
             ref={printRef}
             className={`bg-white text-black p-4 shadow-md font-mono text-xs leading-relaxed border border-dashed border-gray-300 print-only ${
@@ -191,7 +195,7 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
         </div>
 
         {/* Modal Action Controls */}
-        <div className="p-4 bg-background border-t flex flex-wrap items-center justify-between gap-2">
+        <div className="p-4 bg-background border-t flex flex-wrap items-center justify-between gap-2 no-print">
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
