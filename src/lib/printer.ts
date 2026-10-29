@@ -5,12 +5,12 @@
  */
 
 export interface PrintThermalOptions {
-  paperWidth?: '58mm' | '80mm' | string;
+  paperWidth?: '58mm' | '80mm' | 'A4' | string;
   title?: string;
 }
 
 /**
- * Prints a receipt or KOT element cleanly using an isolated invisible iframe.
+ * Prints a receipt, KOT, or full-page tax invoice cleanly using an isolated invisible iframe.
  * Avoids modal clipping (overflow-hidden, max-h-[...], transforms) and ensures 100% full receipt printing.
  */
 export function printThermalReceipt(
@@ -24,9 +24,10 @@ export function printThermalReceipt(
     return;
   }
 
-  const paperWidth = options?.paperWidth === '58mm' ? '58mm' : '80mm';
-  const title = options?.title || 'Receipt';
-  const contentWidth = paperWidth === '58mm' ? '48mm' : '72mm';
+  const isA4 = options?.paperWidth === 'A4';
+  const paperWidth = isA4 ? 'A4' : options?.paperWidth === '58mm' ? '58mm' : '80mm';
+  const title = options?.title || (isA4 ? 'Tax_Invoice_A4' : 'Receipt');
+  const contentWidth = isA4 ? '100%' : paperWidth === '58mm' ? '48mm' : '72mm';
 
   // Create an invisible iframe attached to body
   const iframe = document.createElement('iframe');
@@ -77,8 +78,8 @@ export function printThermalReceipt(
         ${headStyles}
         <style>
           @page {
-            size: ${paperWidth} auto;
-            margin: 0mm;
+            size: ${isA4 ? 'A4 portrait' : `${paperWidth} auto`};
+            margin: ${isA4 ? '8mm' : '0mm'};
           }
           *, *::before, *::after {
             box-sizing: border-box;
@@ -91,9 +92,9 @@ export function printThermalReceipt(
             width: 100% !important;
             background: #ffffff !important;
             color: #000000 !important;
-            font-family: 'Courier New', Courier, monospace !important;
-            font-size: ${paperWidth === '58mm' ? '9px' : '11px'} !important;
-            line-height: 1.25 !important;
+            font-family: ${isA4 ? "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" : "'Courier New', Courier, monospace"} !important;
+            font-size: ${isA4 ? '12px' : paperWidth === '58mm' ? '9px' : '11px'} !important;
+            line-height: ${isA4 ? '1.4' : '1.25'} !important;
             height: auto !important;
             min-height: 100% !important;
             overflow: visible !important;
@@ -102,7 +103,7 @@ export function printThermalReceipt(
             width: ${contentWidth} !important;
             max-width: 100% !important;
             margin: 0 auto !important;
-            padding: 2mm 1mm !important;
+            padding: ${isA4 ? '0' : '2mm 1mm'} !important;
             background: #ffffff !important;
             color: #000000 !important;
             overflow: visible !important;
