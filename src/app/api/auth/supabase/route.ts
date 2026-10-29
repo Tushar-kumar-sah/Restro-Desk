@@ -5,6 +5,8 @@ import prisma from '@/lib/prisma';
 import { signToken, AUTH_COOKIE_NAME, ROLE_PERMISSIONS } from '@/lib/auth';
 import { UserRoleType } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 const supabaseAuthSchema = z.object({
   accessToken: z.string().min(1, 'Access token is required'),
 });
