@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Printer, Share2, FileText, Receipt, Check } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Printer, FileText, Receipt } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDateTime, numberToWords } from '@/lib/formatters';
 import { useAppStore } from '@/store/useAppStore';
-import { toast } from 'sonner';
 import { printThermalReceipt } from '@/lib/printer';
 
 interface BillPrintModalProps {
@@ -19,8 +18,6 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
   const { selectedOutlet } = useAppStore();
   const printRef = useRef<HTMLDivElement>(null);
   const [printFormat, setPrintFormat] = useState<'thermal' | 'a4'>('thermal');
-  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
-  const [phoneInput, setPhoneInput] = useState('');
 
   if (!order) return null;
 
@@ -38,68 +35,6 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
         title: `Tax_Invoice_${order.orderNumber || 'Receipt'}`,
       });
     }
-  };
-
-  const buildWhatsAppReceiptMessage = (ord: any, outlet: any) => {
-    const outletName = (outlet?.name || 'Indiranagar Flagship').toUpperCase();
-    const outletAddress = outlet?.address || '100ft Road, HAL 2nd Stage, Indiranagar';
-    const phone = outlet?.phone || '+91 80 4123 4567';
-    const gstin = outlet?.gstin ? `\n*GSTIN:* ${outlet.gstin}` : '';
-    const dateStr = formatDateTime(ord.createdAt || new Date());
-
-    let itemsList = '';
-    (ord.items || []).forEach((item: any, i: number) => {
-      const total = item.totalPrice || item.subtotal || item.unitPrice * item.quantity;
-      itemsList += `${i + 1}. *${item.name}* x ${item.quantity} = ₹${total}\n`;
-    });
-
-    return `🧾 *RESTODESK - ${outletName}*
-📍 ${outletAddress}
-📞 Ph: ${phone}${gstin}
-━━━━━━━━━━━━━━━━━━━━
-*DIGITAL TAX INVOICE*
-*Bill No:* ${ord.orderNumber}
-*Date:* ${dateStr}
-*Table:* ${ord.tableNumber || 'Takeaway'} | *Type:* ${ord.orderType || 'Dine-In'}
-*Guest:* ${ord.customerName || 'Valued Guest'}
-━━━━━━━━━━━━━━━━━━━━
-*ITEMS ORDERED:*
-${itemsList}━━━━━━━━━━━━━━━━━━━━
-*Sub Total:* ${formatCurrency(ord.subtotal)}
-*CGST (2.5%):* ${formatCurrency(ord.cgstAmount)}
-*SGST (2.5%):* ${formatCurrency(ord.sgstAmount)}
-${ord.discountAmount > 0 ? `*Discount:* -${formatCurrency(ord.discountAmount)}\n` : ''}${ord.roundOff ? `*Round Off:* ${ord.roundOff > 0 ? '+' : ''}${ord.roundOff}\n` : ''}*NET PAYABLE: ${formatCurrency(ord.totalAmount)}*
-*Payment Mode:* ${ord.paymentMethod || 'CASH'}
-━━━━━━━━━━━━━━━━━━━━
-🙏 *Thank You for dining with us!*
-Please visit us again soon.
-
-⭐ *Rate your dining experience:*
-https://restro-desk.vercel.app/review/${ord.orderNumber || ''}`;
-  };
-
-  const handleOpenWhatsAppModal = () => {
-    setPhoneInput(order.customerPhone || '');
-    setIsWhatsAppModalOpen(true);
-  };
-
-  const handleSendViaWhatsApp = (targetPhone: string) => {
-    let cleaned = targetPhone.replace(/\D/g, '');
-    if (cleaned.length === 10) cleaned = '91' + cleaned;
-    if (cleaned.length === 11 && cleaned.startsWith('0')) cleaned = '91' + cleaned.slice(1);
-
-    if (cleaned.length < 10) {
-      toast.error('Please enter a valid 10-digit mobile number');
-      return;
-    }
-
-    const message = buildWhatsAppReceiptMessage(order, selectedOutlet);
-    const encodedText = encodeURIComponent(message);
-    const waUrl = `https://api.whatsapp.com/send?phone=${cleaned}&text=${encodedText}`;
-
-    window.open(waUrl, '_blank');
-    toast.success(`Opening WhatsApp e-Bill for +${cleaned}...`);
-    setIsWhatsAppModalOpen(false);
   };
 
   return (
@@ -500,100 +435,20 @@ https://restro-desk.vercel.app/review/${ord.orderNumber || ''}`;
         </div>
 
         {/* Modal Action Controls */}
-        <div className="p-3.5 sm:p-4 bg-background border-t flex flex-wrap items-center justify-between gap-2 no-print">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenWhatsAppModal}
-              className="text-xs rounded-xl border-emerald-600/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
-            >
-              <Share2 className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
-              WhatsApp Bill
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onClose} className="rounded-xl">
-              Close
-            </Button>
-            <Button
-              size="sm"
-              onClick={handlePrint}
-              className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-sm text-xs font-semibold"
-            >
-              <Printer className="h-4 w-4 mr-1.5" />
-              {printFormat === 'a4' ? 'Print Full Page A4 Invoice' : 'Print 80mm Thermal Bill'}
-            </Button>
-          </div>
+        <div className="p-3.5 sm:p-4 bg-background border-t flex items-center justify-end gap-3 no-print">
+          <Button variant="outline" size="sm" onClick={onClose} className="rounded-xl px-4 text-xs">
+            Close
+          </Button>
+          <Button
+            size="sm"
+            onClick={handlePrint}
+            className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-sm text-xs font-semibold px-4"
+          >
+            <Printer className="h-4 w-4 mr-1.5" />
+            {printFormat === 'a4' ? 'Print Full Page A4 Invoice' : 'Print 80mm Thermal Bill'}
+          </Button>
         </div>
       </DialogContent>
-
-      {/* WhatsApp e-Bill Dispatch Dialog */}
-      <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
-        <DialogContent className="max-w-sm sm:rounded-2xl p-5 border shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-emerald-700">
-              <Share2 className="h-5 w-5 text-emerald-600" />
-              Send Digital Bill on WhatsApp
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Send the full formatted GST e-bill directly to the guest&apos;s WhatsApp.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Customer Mobile Number</label>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-500 bg-muted px-2.5 py-2 rounded-lg border">
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  placeholder="98765 43210"
-                  value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSendViaWhatsApp(phoneInput);
-                  }}
-                  className="flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                  maxLength={15}
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
-              <div className="font-bold">
-                Order #{order.orderNumber} • Net: {formatCurrency(order.totalAmount)}
-              </div>
-              <div className="text-[10px] text-emerald-700 dark:text-emerald-400">
-                Includes restaurant address, item breakdown, taxes (CGST/SGST) &amp; dining review link.
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsWhatsAppModalOpen(false)}
-              className="rounded-xl text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => handleSendViaWhatsApp(phoneInput)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs gap-1.5 shadow-sm font-semibold"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-              Send to WhatsApp
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Dialog>
   );
 }
