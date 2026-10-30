@@ -281,56 +281,139 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      await prisma.order.create({
-        data: {
-          brandId,
-          outletId,
-          orderNumber,
-          dailyOrderSequence: seq,
-          orderType: data.orderType,
-          status: 'PREPARING',
-          tableId: data.tableId,
-          customerId: data.customerId,
-          subtotal: itemsSubtotal,
-          discountAmount: calculatedDiscount,
-          discountPercent: data.discountPercent,
-          discountReason: data.discountReason,
-          cgstAmount,
-          sgstAmount,
-          taxAmount,
-          serviceCharge: data.serviceCharge,
-          packagingCharge: data.packagingCharge,
-          deliveryCharge: data.deliveryCharge,
-          roundOff,
-          totalAmount: roundedTotal,
-          balanceAmount: roundedTotal,
-          createdById: userId,
-          notes: data.notes,
-          items: {
-            create: processedItems.map((pi) => ({
-              itemId: pi.itemId,
-              name: pi.name,
-              quantity: pi.quantity,
-              unitPrice: pi.unitPrice,
-              subtotal: pi.subtotal,
-              totalPrice: pi.totalPrice,
-              notes: pi.notes,
-            })),
+      let activeBrandId = session?.brandId;
+      let activeOutletId = data.outletId || session?.outletId;
+      let activeUserId = session?.userId;
+      let activeTableId = data.tableId;
+
+      if (!activeBrandId || activeBrandId.startsWith('brand-')) {
+        const b = await prisma.brand.findFirst();
+        if (b) activeBrandId = b.id;
+      }
+      if (!activeOutletId || activeOutletId.startsWith('outlet-')) {
+        const o = await prisma.outlet.findFirst();
+        if (o) activeOutletId = o.id;
+      }
+      if (!activeUserId) {
+        const u = await prisma.user.findFirst();
+        if (u) activeUserId = u.id;
+      }
+      if (data.tableNumber && (!activeTableId || activeTableId.startsWith('tbl-'))) {
+        const t = await prisma.table.findFirst({
+          where: { tableNumber: data.tableNumber, isDeleted: false },
+        });
+        if (t) activeTableId = t.id;
+      }
+
+      const firstDbItem = await prisma.item.findFirst().catch(() => null);
+
+      const dbItemsToCreate = await Promise.all(
+        processedItems.map(async (pi) => {
+          let realItemId: string | null = pi.itemId || null;
+          if (realItemId && !realItemId.startsWith('m-')) {
+            const exists = await prisma.item.findUnique({ where: { id: realItemId } }).catch(() => null);
+            if (!exists) realItemId = null;
+          } else {
+            realItemId = null;
+          }
+
+          if (!realItemId) {
+            const matchByName = await prisma.item.findFirst({
+              where: { name: { contains: pi.name, mode: 'insensitive' } },
+            }).catch(() => null);
+            realItemId = matchByName?.id || firstDbItem?.id || null;
+          }
+
+          return {
+            itemId: realItemId,
+            name: pi.name,
+            quantity: pi.quantity,
+            unitPrice: pi.unitPrice,
+            subtotal: pi.subtotal,
+            totalPrice: pi.totalPrice,
+            notes: pi.notes,
+          };
+        })
+      );
+
+      const validDbItems = dbItemsToCreate.filter(
+        (i): i is typeof i & { itemId: string } => typeof i.itemId === 'string' && i.itemId.length > 0
+      );
+
+      if (activeBrandId && activeOutletId && activeUserId) {
+        const dbCreatedOrder = await prisma.order.create({
+          data: {
+            brandId: activeBrandId,
+            outletId: activeOutletId,
+            orderNumber,
+            dailyOrderSequence: seq,
+            orderType: data.orderType,
+            status: 'PREPARING',
+            tableId: activeTableId || undefined,
+            customerId: data.customerId || undefined,
+            subtotal: itemsSubtotal,
+            discountAmount: calculatedDiscount,
+            discountPercent: data.discountPercent,
+            discountReason: data.discountReason,
+            cgstAmount,
+            sgstAmount,
+            taxAmount,
+            serviceCharge: data.serviceCharge,
+            packagingCharge: data.packagingCharge,
+            deliveryCharge: data.deliveryCharge,
+            roundOff,
+            totalAmount: roundedTotal,
+            balanceAmount: roundedTotal,
+            createdById: activeUserId,
+            notes: data.notes,
+            items: {
+              create: validDbItems,
+            },
+            kots: data.autoKOT
+              ? {
+                  create: {
+                    brandId: activeBrandId,
+                    outletId: activeOutletId,
+                    kotNumber,
+                    station: 'GENERAL',
+                    status: 'NEW',
+                  },
+                }
+              : undefined,
           },
-          kots: data.autoKOT
-            ? {
-                create: {
-                  brandId,
-                  outletId,
-                  kotNumber,
-                  station: 'GENERAL',
-                  status: 'NEW',
-                },
-              }
-            : undefined,
-        },
-      });
-    } catch (err) {}
+          include: {
+            kots: true,
+            items: true,
+          },
+        });
+
+        if (dbCreatedOrder) {
+          newOrder.id = dbCreatedOrder.id;
+
+          // Link items to KOT in DB
+          if (dbCreatedOrder.kots?.[0]?.id) {
+            await prisma.orderItem.updateMany({
+              where: { orderId: dbCreatedOrder.id },
+              data: { kotId: dbCreatedOrder.kots[0].id },
+            }).catch(() => {});
+          }
+
+          // If dine in, update table in DB
+          if (activeTableId) {
+            await prisma.table.update({
+              where: { id: activeTableId },
+              data: {
+                status: 'RUNNING',
+                currentOrderId: dbCreatedOrder.id,
+              },
+            }).catch(() => {});
+            invalidateCache('tables:');
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to create order in DB:', err);
+    }
 
     return NextResponse.json({
       success: true,

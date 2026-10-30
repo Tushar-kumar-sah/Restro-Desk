@@ -151,7 +151,8 @@ export default function KitchenDisplayPage() {
 
   // Filter KOTs
   const filteredKots = kots.filter((kot) => {
-    const matchesStation = stationFilter === 'ALL' || kot.station === stationFilter;
+    const matchesStation =
+      stationFilter === 'ALL' || kot.station === stationFilter || kot.station === 'GENERAL';
     const matchesStatus = statusFilter === 'ALL' || kot.status === statusFilter;
     return matchesStation && matchesStatus;
   });
