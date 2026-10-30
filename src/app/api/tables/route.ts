@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { TableStatus } from '@prisma/client';
-import { MOCK_TABLES } from '@/lib/mock-data';
+import { MOCK_TABLES, MOCK_SECTIONS } from '@/lib/mock-data';
 import { getCached, setCached, invalidateCache } from '@/lib/cache';
 
 const createTableSchema = z.object({
@@ -92,10 +92,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let sectionName = 'Dining Section';
+    try {
+      const sec = await prisma.section.findUnique({ where: { id: result.data.sectionId } });
+      if (sec) sectionName = sec.name;
+    } catch (e) {}
+
+    if (sectionName === 'Dining Section') {
+      const mockSec = MOCK_SECTIONS.find((s: any) => s.id === result.data.sectionId);
+      if (mockSec) sectionName = mockSec.name;
+    }
+
     const newTbl = {
       id: `tbl-${Date.now()}`,
       outletId,
       ...result.data,
+      sectionName,
       status: 'VACANT',
       runningAmount: 0,
       seatedAt: null,

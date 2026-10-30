@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { MOCK_TABLES } from '@/lib/mock-data';
+import { invalidateCache } from '@/lib/cache';
 
 const updateTableSchema = z.object({
   tableNumber: z.string().optional(),
@@ -42,6 +43,7 @@ export async function PATCH(
       });
     } catch (err) {}
 
+    invalidateCache('tables:');
     return NextResponse.json({
       success: true,
       message: 'Table updated successfully',
@@ -70,7 +72,8 @@ export async function DELETE(
       });
     } catch (err) {}
 
-    return NextResponse.json({ success: true, message: 'Table removed' });
+    invalidateCache('tables:');
+    return NextResponse.json({ success: true, message: 'Table removed successfully' });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }

@@ -18,7 +18,9 @@ import {
   Sparkles,
   Phone,
   AlertCircle,
+  AlertTriangle,
   Eye,
+  Trash2,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
@@ -51,6 +53,18 @@ export default function TableManagementPage() {
   const [isReservationsOpen, setIsReservationsOpen] = useState(false);
   const [isNewTableOpen, setIsNewTableOpen] = useState(false);
   const [selectedTableDetails, setSelectedTableDetails] = useState<any>(null);
+
+  // Table Creation & Deletion
+  const [tableToDelete, setTableToDelete] = useState<any | null>(null);
+  const [isDeletingTable, setIsDeletingTable] = useState(false);
+  const [isCreatingTable, setIsCreatingTable] = useState(false);
+  const [newTableData, setNewTableData] = useState({
+    tableNumber: '',
+    sectionId: '',
+    capacity: 4,
+    posX: 0,
+    posY: 0,
+  });
 
   // Transfer State
   const [sourceTable, setSourceTable] = useState('');
@@ -116,7 +130,10 @@ export default function TableManagementPage() {
 
   // Click on Table Handler
   const handleTableClick = (table: any) => {
-    if (isEditLayoutMode) return;
+    if (isEditLayoutMode) {
+      setSelectedTableDetails(table);
+      return;
+    }
 
     if (table.status === 'VACANT') {
       // Direct seating / order
@@ -126,6 +143,76 @@ export default function TableManagementPage() {
       router.push('/pos');
     } else {
       setSelectedTableDetails(table);
+    }
+  };
+
+  // Create Table Handler
+  const handleCreateTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTableData.tableNumber.trim()) {
+      toast.error('Table number or name is required');
+      return;
+    }
+    const secId = newTableData.sectionId || (sections[0]?.id || 'sec-01');
+
+    setIsCreatingTable(true);
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableNumber: newTableData.tableNumber.trim().toUpperCase(),
+          sectionId: secId,
+          capacity: Number(newTableData.capacity) || 4,
+          posX: Number(newTableData.posX) || 0,
+          posY: Number(newTableData.posY) || 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to create table');
+      }
+
+      toast.success(data.message || `Table ${newTableData.tableNumber} created!`);
+      setIsNewTableOpen(false);
+      setNewTableData({
+        tableNumber: '',
+        sectionId: sections[0]?.id || 'sec-01',
+        capacity: 4,
+        posX: 0,
+        posY: 0,
+      });
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create table');
+    } finally {
+      setIsCreatingTable(false);
+    }
+  };
+
+  // Delete Table Handler
+  const handleDeleteTable = async (tableId: string, tableNumber: string) => {
+    setIsDeletingTable(true);
+    try {
+      const res = await fetch(`/api/tables/${tableId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to delete table');
+      }
+
+      toast.success(`Table ${tableNumber} deleted successfully`);
+      setTableToDelete(null);
+      if (selectedTableDetails?.id === tableId) {
+        setSelectedTableDetails(null);
+      }
+      setTables((prev) => prev.filter((t) => t.id !== tableId));
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete table');
+    } finally {
+      setIsDeletingTable(false);
     }
   };
 
@@ -240,6 +327,26 @@ export default function TableManagementPage() {
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Add Table Button */}
+          <Button
+            size="sm"
+            onClick={() => {
+              const nextNum = `T-${String(tables.length + 1).padStart(2, '0')}`;
+              setNewTableData({
+                tableNumber: nextNum,
+                sectionId: selectedSection !== 'all' ? selectedSection : (sections[0]?.id || 'sec-01'),
+                capacity: 4,
+                posX: 0,
+                posY: 0,
+              });
+              setIsNewTableOpen(true);
+            }}
+            className="rounded-xl text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Add Table
+          </Button>
+
           {/* Edit Floor Toggle */}
           <Button
             variant={isEditLayoutMode ? 'default' : 'outline'}
@@ -433,20 +540,39 @@ export default function TableManagementPage() {
                     {table.tableNumber}
                   </span>
 
-                  <Badge
-                    variant={
-                      isVacant
-                        ? 'success'
-                        : isRunning
-                        ? 'warning'
-                        : isBilled
-                        ? 'info'
-                        : 'purple'
-                    }
-                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
-                  >
-                    {table.status}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      variant={
+                        isVacant
+                          ? 'success'
+                          : isRunning
+                          ? 'warning'
+                          : isBilled
+                          ? 'info'
+                          : 'purple'
+                      }
+                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
+                    >
+                      {table.status}
+                    </Badge>
+
+                    {/* Quick Delete Table Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTableToDelete(table);
+                      }}
+                      title={`Delete Table ${table.tableNumber}`}
+                      className={`p-1 rounded-md transition-all ${
+                        isEditLayoutMode
+                          ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950/60 dark:text-red-400'
+                          : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40'
+                      }`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Body Details: Running Amount & Timer */}
@@ -495,6 +621,29 @@ export default function TableManagementPage() {
               </div>
             );
           })}
+
+          {/* Quick Add Table Card */}
+          <button
+            type="button"
+            onClick={() => {
+              const nextNum = `T-${String(tables.length + 1).padStart(2, '0')}`;
+              setNewTableData({
+                tableNumber: nextNum,
+                sectionId: selectedSection !== 'all' ? selectedSection : (sections[0]?.id || 'sec-01'),
+                capacity: 4,
+                posX: 0,
+                posY: 0,
+              });
+              setIsNewTableOpen(true);
+            }}
+            className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-dashed border-muted-foreground/30 hover:border-orange-500 hover:bg-orange-50/20 dark:hover:bg-orange-950/10 text-muted-foreground hover:text-orange-600 transition-all min-h-[140px] group active:scale-95"
+          >
+            <div className="p-2 rounded-xl bg-muted/60 group-hover:bg-orange-100 dark:group-hover:bg-orange-950/40 transition-colors mb-1.5">
+              <Plus className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-bold">Add Table</span>
+            <span className="text-[10px] text-muted-foreground">New seating point</span>
+          </button>
         </div>
       </div>
 
@@ -549,32 +698,75 @@ export default function TableManagementPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2">
+            {selectedTableDetails?.status === 'VACANT' ? (
+              <div className="pt-2">
+                <Button
+                  onClick={() => {
+                    setTable(selectedTableDetails.tableNumber, selectedTableDetails.id);
+                    setOrderType('DINE_IN');
+                    setSelectedTableDetails(null);
+                    router.push('/pos');
+                  }}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Seat Guests &amp; Take Order
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setTable(selectedTableDetails.tableNumber, selectedTableDetails.id);
+                    setOrderType('DINE_IN');
+                    setSelectedTableDetails(null);
+                    router.push('/pos');
+                  }}
+                  className="rounded-xl text-xs font-semibold"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Add More Items
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setTable(selectedTableDetails.tableNumber, selectedTableDetails.id);
+                    setOrderType('DINE_IN');
+                    setSelectedTableDetails(null);
+                    router.push('/pos');
+                  }}
+                  className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold shadow-sm"
+                >
+                  <Receipt className="h-3.5 w-3.5 mr-1.5" />
+                  Open POS Bill
+                </Button>
+              </div>
+            )}
+
+            {/* Bottom Actions: Delete Table & Close */}
+            <div className="pt-3 border-t flex items-center justify-between">
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => {
-                  setTable(selectedTableDetails.tableNumber, selectedTableDetails.id);
-                  setOrderType('DINE_IN');
+                  const tbl = selectedTableDetails;
                   setSelectedTableDetails(null);
-                  router.push('/pos');
+                  setTableToDelete(tbl);
                 }}
-                className="rounded-xl text-xs font-semibold"
+                className="rounded-xl text-xs text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200 dark:border-red-900/40 dark:hover:bg-red-950/40"
               >
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Add More Items
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Delete Table
               </Button>
 
               <Button
-                onClick={() => {
-                  setTable(selectedTableDetails.tableNumber, selectedTableDetails.id);
-                  setOrderType('DINE_IN');
-                  setSelectedTableDetails(null);
-                  router.push('/pos');
-                }}
-                className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold shadow-sm"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedTableDetails(null)}
+                className="rounded-xl text-xs text-muted-foreground"
               >
-                <Receipt className="h-3.5 w-3.5 mr-1.5" />
-                Open POS Bill
+                Close
               </Button>
             </div>
           </div>
@@ -799,6 +991,152 @@ export default function TableManagementPage() {
               ))}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 5: Create New Table Dialog */}
+      <Dialog open={isNewTableOpen} onOpenChange={setIsNewTableOpen}>
+        <DialogContent className="max-w-md sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-orange-600" />
+              <span>Create New Dining Table</span>
+            </DialogTitle>
+            <DialogDescription>
+              Add a new table to your restaurant floor plan and assign its dining section.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateTable} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="tableNumber">Table Number / Identifier *</Label>
+              <Input
+                id="tableNumber"
+                placeholder="e.g. T-21, VIP-1, TERRACE-02"
+                value={newTableData.tableNumber}
+                onChange={(e) => setNewTableData({ ...newTableData, tableNumber: e.target.value })}
+                className="rounded-xl text-sm font-semibold"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="sectionSelect">Dining Section *</Label>
+              <select
+                id="sectionSelect"
+                value={newTableData.sectionId || (sections[0]?.id || '')}
+                onChange={(e) => setNewTableData({ ...newTableData, sectionId: e.target.value })}
+                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
+                required
+              >
+                {sections.map((sec) => (
+                  <option key={sec.id} value={sec.id}>
+                    {sec.name} (Floor {sec.floorNumber || 1})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Seating Capacity</Label>
+              <div className="grid grid-cols-6 gap-2">
+                {[2, 4, 6, 8, 10, 12].map((cap) => (
+                  <button
+                    key={cap}
+                    type="button"
+                    onClick={() => setNewTableData({ ...newTableData, capacity: cap })}
+                    className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                      newTableData.capacity === cap
+                        ? 'border-orange-600 bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-500 shadow-xs'
+                        : 'border-border text-muted-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    {cap}p
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-3 bg-muted/30 rounded-xl border flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Initial Status:</span>
+              <Badge variant="success" className="text-[10px] font-bold">
+                VACANT (Ready)
+              </Badge>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsNewTableOpen(false)}
+                className="rounded-xl text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isCreatingTable}
+                className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold shadow-sm"
+              >
+                {isCreatingTable ? 'Creating Table...' : 'Create Table'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 6: Delete Table Confirmation Dialog */}
+      <Dialog open={!!tableToDelete} onOpenChange={(open) => !open && setTableToDelete(null)}>
+        <DialogContent className="max-w-sm sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              <span>Delete Table {tableToDelete?.tableNumber}?</span>
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete Table {tableToDelete?.tableNumber} from {tableToDelete?.sectionName || 'the floor plan'}?
+            </DialogDescription>
+          </DialogHeader>
+
+          {tableToDelete && (
+            <div className="space-y-3 pt-2">
+              {tableToDelete.status === 'RUNNING' || tableToDelete.status === 'BILLED' ? (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    Active Running Order
+                  </div>
+                  <p className="text-[11px]">
+                    This table has an active bill of <strong>{formatCurrency(tableToDelete.runningAmount)}</strong>.
+                    Deleting this table will also cancel the active table session.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-muted/40 rounded-xl border text-xs text-muted-foreground">
+                  Table {tableToDelete.tableNumber} is currently <strong className="text-foreground">{tableToDelete.status}</strong> with {tableToDelete.capacity} seats.
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setTableToDelete(null)}
+                  disabled={isDeletingTable}
+                  className="rounded-xl text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => handleDeleteTable(tableToDelete.id, tableToDelete.tableNumber)}
+                  disabled={isDeletingTable}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold shadow-sm"
+                >
+                  {isDeletingTable ? 'Deleting...' : 'Yes, Delete Table'}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </AppShell>
