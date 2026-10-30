@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { ChefHat, Printer } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ChefHat, Printer, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatTime } from '@/lib/formatters';
 import { printThermalReceipt } from '@/lib/printer';
@@ -27,13 +27,24 @@ export function KOTPrintModal({ isOpen, onClose, kotData }: KOTPrintModalProps) 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm sm:rounded-2xl p-0 overflow-hidden border shadow-2xl print:max-w-none print:max-h-none print:overflow-visible print:border-none print:shadow-none print:bg-white print:p-0">
-        <DialogHeader className="p-4 pr-12 border-b bg-muted/20 no-print">
+      <DialogContent
+        hideCloseButton={true}
+        className="max-w-sm sm:rounded-2xl p-0 overflow-hidden border shadow-2xl print:max-w-none print:max-h-none print:overflow-visible print:border-none print:shadow-none print:bg-white print:p-0"
+      >
+        <div className="p-4 border-b bg-muted/20 flex items-center justify-between no-print shrink-0">
           <DialogTitle className="text-base font-bold flex items-center gap-2">
             <ChefHat className="h-4 w-4 text-emerald-600" />
             Kitchen Order Ticket (KOT) Preview
           </DialogTitle>
-        </DialogHeader>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground border border-input bg-background/80 shadow-xs transition-colors shrink-0"
+            title="Close Preview"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
         {/* Printable KOT Paper */}
         <div className="py-6 px-4 bg-slate-100 dark:bg-zinc-950 flex flex-col items-center max-h-[70vh] overflow-y-auto print:max-h-none print:overflow-visible print:p-0 print:bg-white">

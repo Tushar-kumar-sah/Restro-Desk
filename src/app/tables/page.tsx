@@ -522,7 +522,7 @@ export default function TableManagementPage() {
 
       {/* Main Floor Plan Area */}
       <div
-        className={`relative rounded-3xl border p-3 sm:p-6 min-h-[400px] transition-all overflow-hidden ${
+        className={`relative rounded-3xl border p-3 sm:p-6 min-h-[400px] transition-all ${
           isEditLayoutMode
             ? 'bg-orange-50/20 border-dashed border-orange-400 dark:bg-orange-950/10'
             : 'bg-card shadow-xs'
@@ -536,7 +536,7 @@ export default function TableManagementPage() {
         )}
 
         {/* 20 Table Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 sm:gap-4">
           {filteredTables.map((table) => {
             const isVacant = table.status === 'VACANT';
             const isRunning = table.status === 'RUNNING';

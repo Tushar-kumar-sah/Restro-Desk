@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Receipt,
   Calculator,
+  X,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -61,18 +62,26 @@ export function SettleModal({ isOpen, onClose, orderTotal, onSettled, customer }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md sm:rounded-2xl p-0 overflow-hidden border shadow-2xl">
-        <DialogHeader className="p-4 pr-12 border-b bg-muted/20">
-          <DialogTitle className="text-sm sm:text-base font-bold flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-orange-600 shrink-0" />
-              Settle &amp; Close Bill
-            </span>
+      <DialogContent hideCloseButton={true} className="max-w-md sm:rounded-2xl p-0 overflow-hidden border shadow-2xl">
+        <div className="p-4 border-b bg-muted/20 flex items-center justify-between">
+          <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-orange-600 shrink-0" />
+            Settle &amp; Close Bill
+          </DialogTitle>
+          <div className="flex items-center gap-2.5">
             <span className="text-base sm:text-lg font-black text-orange-600">
               {formatCurrency(orderTotal)}
             </span>
-          </DialogTitle>
-        </DialogHeader>
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground border border-input bg-background/80 shadow-xs transition-colors shrink-0"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
 
         <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
           {/* Payment Method Tabs */}

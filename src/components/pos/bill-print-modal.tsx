@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Printer, FileText, Receipt } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Printer, FileText, Receipt, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDateTime, numberToWords } from '@/lib/formatters';
 import { useAppStore } from '@/store/useAppStore';
@@ -40,14 +40,15 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
+        hideCloseButton={true}
         className={`w-full flex flex-col p-0 overflow-hidden border shadow-2xl rounded-2xl transition-all duration-200 print:max-w-none print:max-h-none print:overflow-visible print:border-none print:shadow-none print:bg-white print:p-0 ${
           printFormat === 'a4'
             ? 'max-w-3xl sm:max-w-4xl h-[92vh] max-h-[920px]'
             : 'max-w-md sm:max-w-xl h-[90vh] max-h-[820px]'
         }`}
       >
-        {/* Header with Format Switcher */}
-        <DialogHeader className="px-4 sm:px-5 py-3 border-b bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 pr-12 sm:pr-16 no-print shrink-0">
+        {/* Header with Format Switcher & Inline Centered Close Button */}
+        <div className="px-4 sm:px-5 py-3 border-b bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 no-print shrink-0">
           <div className="space-y-0.5 text-left">
             <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2 tracking-tight">
               <Printer className="h-4 w-4 text-orange-600 shrink-0" />
@@ -58,44 +59,55 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
             </p>
           </div>
 
-          {/* Toggle: 80mm Thermal vs Full A4 Tax Invoice */}
-          <div className="flex items-center gap-1 bg-muted/80 p-0.5 sm:p-1 rounded-xl border shrink-0">
+          {/* Toggle: 80mm Thermal vs Full A4 Tax Invoice + Inline Centered (X) */}
+          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+            <div className="flex items-center gap-1 bg-muted/80 p-0.5 sm:p-1 rounded-xl border">
+              <button
+                type="button"
+                onClick={() => setPrintFormat('thermal')}
+                className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  printFormat === 'thermal'
+                    ? 'bg-white dark:bg-zinc-800 text-orange-600 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Receipt className="h-3.5 w-3.5" />
+                80mm Thermal
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrintFormat('a4')}
+                className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  printFormat === 'a4'
+                    ? 'bg-white dark:bg-zinc-800 text-orange-600 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                A4 Full Page
+              </button>
+            </div>
+
             <button
               type="button"
-              onClick={() => setPrintFormat('thermal')}
-              className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                printFormat === 'thermal'
-                  ? 'bg-white dark:bg-zinc-800 text-orange-600 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              onClick={onClose}
+              className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground border border-input bg-background/80 shadow-xs transition-colors shrink-0"
+              title="Close Preview"
             >
-              <Receipt className="h-3.5 w-3.5" />
-              80mm Thermal
-            </button>
-            <button
-              type="button"
-              onClick={() => setPrintFormat('a4')}
-              className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                printFormat === 'a4'
-                  ? 'bg-white dark:bg-zinc-800 text-orange-600 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              A4 Full Page
+              <X className="h-4 w-4" />
             </button>
           </div>
-        </DialogHeader>
+        </div>
 
         {/* Printable Area with full-view responsive height */}
-        <div className="py-6 px-4 bg-slate-100 dark:bg-zinc-950 flex flex-col items-center flex-1 overflow-y-auto min-h-0 print:max-h-none print:overflow-visible print:p-0 print:bg-white">
+        <div className="py-6 px-4 bg-slate-100 dark:bg-zinc-950 flex flex-col items-center flex-1 overflow-y-auto min-h-0 print:max-h-none print:overflow-visible print:p-0 print:bg-white pb-16">
           {printFormat === 'thermal' ? (
             /* ========================================================= */
             /* 80mm / 58mm THERMAL RECEIPT                               */
             /* ========================================================= */
             <div
               ref={printRef}
-              className={`bg-white text-black p-4 shadow-xl font-mono text-[11px] leading-snug border border-dashed border-gray-300 rounded-sm print-only mb-10 ${
+              className={`bg-white text-black p-4 pb-6 shadow-xl font-mono text-[11px] leading-snug border border-dashed border-gray-300 rounded-sm print-only mb-14 ${
                 paperWidth === '58mm'
                   ? 'thermal-receipt-58mm w-[230px]'
                   : 'thermal-receipt-80mm w-[320px] max-w-full'
@@ -226,12 +238,12 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
               </div>
 
               {/* Footer */}
-              <div className="text-center space-y-0.5 pt-0.5 text-[10px]">
+              <div className="text-center space-y-1 pt-1 pb-3 text-[10px]">
                 <div className="font-bold">Thank You! Please Visit Again.</div>
-                <div className="text-[9px] text-gray-600">
+                <div className="text-[9.5px] text-gray-700">
                   Feedback &amp; Loyalty: Scan QR or visit restodesk.in
                 </div>
-                <div className="text-[8px] text-gray-500 pt-0.5">
+                <div className="text-[9px] text-gray-600 font-sans tracking-tight pt-0.5">
                   Powered by RestoDesk POS Operating System
                 </div>
               </div>
