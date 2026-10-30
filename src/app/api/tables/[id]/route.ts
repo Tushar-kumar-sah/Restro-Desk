@@ -66,8 +66,10 @@ export async function DELETE(
     }
 
     try {
-      await prisma.table.update({
-        where: { id },
+      await prisma.table.updateMany({
+        where: {
+          OR: [{ id }, { tableNumber: id }],
+        },
         data: { isDeleted: true, deletedAt: new Date() },
       });
     } catch (err) {}

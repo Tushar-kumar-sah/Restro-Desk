@@ -146,6 +146,19 @@ export default function TableManagementPage() {
     }
   };
 
+  // Helper to compute next sequential table number
+  const getNextTableNumber = (currentTables: any[]) => {
+    let maxNum = 0;
+    for (const t of currentTables) {
+      const match = t.tableNumber?.match(/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+    return `T-${String(maxNum + 1).padStart(2, '0')}`;
+  };
+
   // Create Table Handler
   const handleCreateTable = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,6 +188,19 @@ export default function TableManagementPage() {
 
       toast.success(data.message || `Table ${newTableData.tableNumber} created!`);
       setIsNewTableOpen(false);
+
+      if (data.table) {
+        setTables((prev) => {
+          const filtered = prev.filter((t) => t.tableNumber !== data.table.tableNumber);
+          return [...filtered, data.table].sort((a, b) => {
+            const numA = parseInt(a.tableNumber?.replace(/\D/g, '') || '0', 10);
+            const numB = parseInt(b.tableNumber?.replace(/\D/g, '') || '0', 10);
+            if (numA !== numB) return numA - numB;
+            return (a.tableNumber || '').localeCompare(b.tableNumber || '');
+          });
+        });
+      }
+
       setNewTableData({
         tableNumber: '',
         sectionId: sections[0]?.id || 'sec-01',
@@ -331,7 +357,7 @@ export default function TableManagementPage() {
           <Button
             size="sm"
             onClick={() => {
-              const nextNum = `T-${String(tables.length + 1).padStart(2, '0')}`;
+              const nextNum = getNextTableNumber(tables);
               setNewTableData({
                 tableNumber: nextNum,
                 sectionId: selectedSection !== 'all' ? selectedSection : (sections[0]?.id || 'sec-01'),
@@ -626,7 +652,7 @@ export default function TableManagementPage() {
           <button
             type="button"
             onClick={() => {
-              const nextNum = `T-${String(tables.length + 1).padStart(2, '0')}`;
+              const nextNum = getNextTableNumber(tables);
               setNewTableData({
                 tableNumber: nextNum,
                 sectionId: selectedSection !== 'all' ? selectedSection : (sections[0]?.id || 'sec-01'),
