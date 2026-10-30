@@ -103,7 +103,7 @@ export function printThermalReceipt(
             width: ${contentWidth} !important;
             max-width: 100% !important;
             margin: 0 auto !important;
-            padding: ${isA4 ? '0' : '2mm 1mm'} !important;
+            padding: ${isA4 ? '0' : '2mm 1mm 8mm 1mm'} !important;
             background: #ffffff !important;
             color: #000000 !important;
             overflow: visible !important;

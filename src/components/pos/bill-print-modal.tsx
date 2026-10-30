@@ -40,14 +40,16 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className={`w-full max-h-[96vh] flex flex-col p-0 overflow-hidden border shadow-2xl rounded-2xl transition-all duration-200 print:max-w-none print:max-h-none print:overflow-visible print:border-none print:shadow-none print:bg-white print:p-0 ${
-          printFormat === 'a4' ? 'max-w-3xl sm:max-w-4xl' : 'max-w-md sm:max-w-lg'
+        className={`w-full flex flex-col p-0 overflow-hidden border shadow-2xl rounded-2xl transition-all duration-200 print:max-w-none print:max-h-none print:overflow-visible print:border-none print:shadow-none print:bg-white print:p-0 ${
+          printFormat === 'a4'
+            ? 'max-w-3xl sm:max-w-4xl h-[92vh] max-h-[920px]'
+            : 'max-w-md sm:max-w-xl h-[90vh] max-h-[820px]'
         }`}
       >
         {/* Header with Format Switcher */}
-        <DialogHeader className="p-3.5 sm:p-4 border-b bg-muted/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print">
-          <div>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
+        <DialogHeader className="px-5 py-3.5 border-b bg-muted/20 flex flex-row items-center justify-between gap-4 pr-16 no-print shrink-0">
+          <div className="space-y-0.5 text-left">
+            <DialogTitle className="text-base font-bold flex items-center gap-2 tracking-tight">
               <Printer className="h-4 w-4 text-orange-600" />
               Bill &amp; Invoice Preview
             </DialogTitle>
@@ -57,7 +59,7 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
           </div>
 
           {/* Toggle: 80mm Thermal vs Full A4 Tax Invoice */}
-          <div className="flex items-center gap-1 bg-muted/80 p-1 rounded-xl border">
+          <div className="flex items-center gap-1 bg-muted/80 p-1 rounded-xl border shrink-0">
             <button
               type="button"
               onClick={() => setPrintFormat('thermal')}
@@ -86,14 +88,14 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
         </DialogHeader>
 
         {/* Printable Area with full-view responsive height */}
-        <div className="p-3 sm:p-6 bg-slate-100 dark:bg-zinc-950 flex justify-center flex-1 overflow-y-auto min-h-0 print:max-h-none print:overflow-visible print:p-0 print:bg-white">
+        <div className="py-6 px-4 bg-slate-100 dark:bg-zinc-950 flex flex-col items-center flex-1 overflow-y-auto min-h-0 print:max-h-none print:overflow-visible print:p-0 print:bg-white">
           {printFormat === 'thermal' ? (
             /* ========================================================= */
             /* 80mm / 58mm THERMAL RECEIPT                               */
             /* ========================================================= */
             <div
               ref={printRef}
-              className={`bg-white text-black p-4 shadow-xl font-mono text-[11px] leading-snug border border-dashed border-gray-300 rounded-sm print-only ${
+              className={`bg-white text-black p-4 shadow-xl font-mono text-[11px] leading-snug border border-dashed border-gray-300 rounded-sm print-only mb-10 ${
                 paperWidth === '58mm'
                   ? 'thermal-receipt-58mm w-[230px]'
                   : 'thermal-receipt-80mm w-[320px] max-w-full'
