@@ -30,7 +30,7 @@ export function MobileBottomNav() {
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 h-16 border-t bg-card/95 backdrop-blur-md px-2 flex items-center justify-around md:hidden shadow-lg select-none no-print">
       {navItems.map((item) => {
-        const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
         const Icon = item.icon;
 
         return (

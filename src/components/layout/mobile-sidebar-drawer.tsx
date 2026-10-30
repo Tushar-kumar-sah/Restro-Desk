@@ -7,7 +7,7 @@ import { X, ChevronDown, ChevronRight, Store } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { NAV_GROUPS } from './sidebar';
+import { NAV_GROUPS, isNavItemActive } from './sidebar';
 
 export function MobileSidebarDrawer() {
   const pathname = usePathname();
@@ -129,9 +129,7 @@ export function MobileSidebarDrawer() {
                 {!isGroupCollapsed && (
                   <div className="space-y-0.5">
                     {group.items.map((item) => {
-                      const isActive =
-                        pathname === item.href ||
-                        (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                      const isActive = isNavItemActive(item.href, pathname);
                       const Icon = item.icon;
 
                       return (

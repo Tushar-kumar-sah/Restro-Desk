@@ -112,6 +112,27 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+export const ALL_NAV_HREFS = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+
+export function isNavItemActive(
+  itemHref: string,
+  currentPathname: string,
+  allHrefs: string[] = ALL_NAV_HREFS
+): boolean {
+  if (currentPathname === itemHref) return true;
+  if (itemHref === '/dashboard') return false;
+  if (currentPathname.startsWith(itemHref + '/')) {
+    const hasMoreSpecificMatch = allHrefs.some(
+      (otherHref) =>
+        otherHref !== itemHref &&
+        otherHref.startsWith(itemHref) &&
+        (currentPathname === otherHref || currentPathname.startsWith(otherHref + '/'))
+    );
+    return !hasMoreSpecificMatch;
+  }
+  return false;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebar } = useAppStore();
@@ -203,7 +224,7 @@ export function Sidebar() {
               {(!isGroupCollapsed || isSidebarCollapsed) && (
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
-                    const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                    const isActive = isNavItemActive(item.href, pathname);
                     const Icon = item.icon;
 
                     return (
