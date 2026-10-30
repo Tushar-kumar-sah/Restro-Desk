@@ -289,6 +289,7 @@ export default function PosBillingPage() {
       if (data.success && data.order) {
         setCurrentOrderData(data.order);
         setIsKotPrintOpen(true);
+        clearCart();
         toast.success(`KOT ${data.order.kotNumber} sent to Kitchen Display`);
       }
     } catch (err) {

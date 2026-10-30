@@ -3,7 +3,8 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { OrderType, OrderStatus } from '@prisma/client';
-import { MOCK_ORDERS } from '@/lib/mock-data';
+import { MOCK_ORDERS, MOCK_KOTS, MOCK_TABLES } from '@/lib/mock-data';
+import { invalidateCache } from '@/lib/cache';
 
 const orderItemSchema = z.object({
   itemId: z.string(),
@@ -225,6 +226,59 @@ export async function POST(req: NextRequest) {
     };
 
     MOCK_ORDERS.unshift(newOrder);
+
+    // 1. Fire KOT to Kitchen Display System (KDS)
+    if (data.autoKOT) {
+      const newKot = {
+        id: `kot-${Date.now()}`,
+        kotNumber,
+        orderNumber,
+        orderId: newOrder.id,
+        tableNumber: newOrder.tableNumber,
+        orderType: newOrder.orderType,
+        station: 'GENERAL',
+        status: 'NEW',
+        createdAt: new Date(),
+        waiter: customerName || 'Captain',
+        items: processedItems.map((pi: any, idx: number) => ({
+          id: `ki-${Date.now()}-${idx}`,
+          name: pi.name,
+          quantity: pi.quantity,
+          notes: pi.notes || '',
+          status: 'COOKING',
+        })),
+      };
+      MOCK_KOTS.unshift(newKot);
+    }
+
+    // 2. Update Table status to RUNNING for Dine-in orders
+    if (data.orderType === 'DINE_IN' && (data.tableNumber || data.tableId)) {
+      const tblNum = data.tableNumber;
+      const tIdx = MOCK_TABLES.findIndex(
+        (t) => (tblNum && t.tableNumber === tblNum) || (data.tableId && t.id === data.tableId)
+      );
+      if (tIdx !== -1) {
+        MOCK_TABLES[tIdx].status = 'RUNNING';
+        MOCK_TABLES[tIdx].runningAmount = (MOCK_TABLES[tIdx].runningAmount || 0) + roundedTotal;
+        MOCK_TABLES[tIdx].seatedAt = MOCK_TABLES[tIdx].seatedAt || new Date();
+        MOCK_TABLES[tIdx].currentOrderId = newOrder.id;
+        if (customerName) MOCK_TABLES[tIdx].guestName = customerName;
+      }
+      try {
+        await prisma.table.updateMany({
+          where: {
+            OR: [
+              ...(tblNum ? [{ tableNumber: tblNum }] : []),
+              ...(data.tableId ? [{ id: data.tableId }] : []),
+            ],
+          },
+          data: {
+            status: 'RUNNING',
+          },
+        });
+        invalidateCache('tables:');
+      } catch (e) {}
+    }
 
     try {
       await prisma.order.create({
