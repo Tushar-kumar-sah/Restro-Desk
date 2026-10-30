@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { MOCK_ORDERS } from '@/lib/mock-data';
+import { MOCK_ORDERS, MOCK_TABLES } from '@/lib/mock-data';
+import { invalidateCache } from '@/lib/cache';
 
 const settleSchema = z.object({
   paymentMethod: z.enum(['CASH', 'CARD', 'UPI_QR', 'WALLET', 'DUE_CREDIT', 'SPLIT', 'OTHER']),
@@ -78,8 +79,34 @@ export async function POST(
           },
         },
       });
+
+      // Free the table in DB if associated
+      const dbOrder = await prisma.order.findUnique({
+        where: { id },
+        select: { tableId: true },
+      });
+      if (dbOrder?.tableId) {
+        await prisma.table.update({
+          where: { id: dbOrder.tableId },
+          data: { status: 'VACANT', currentOrderId: null },
+        });
+        invalidateCache('tables:');
+      }
     } catch (err) {
       // offline fallback was updated in mock store
+    }
+
+    if (settledOrder?.tableNumber || settledOrder?.tableId) {
+      const tblNum = settledOrder.tableNumber;
+      const tIdx = MOCK_TABLES.findIndex(
+        (t) => (tblNum && t.tableNumber === tblNum) || (settledOrder.tableId && t.id === settledOrder.tableId)
+      );
+      if (tIdx !== -1) {
+        MOCK_TABLES[tIdx].status = 'VACANT';
+        MOCK_TABLES[tIdx].runningAmount = 0;
+        MOCK_TABLES[tIdx].currentOrderId = null;
+        MOCK_TABLES[tIdx].seatedAt = null;
+      }
     }
 
     return NextResponse.json({

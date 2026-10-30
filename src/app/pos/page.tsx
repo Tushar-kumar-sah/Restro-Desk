@@ -125,6 +125,27 @@ export default function PosBillingPage() {
     fetchMenu();
   }, []);
 
+  // When switching tables or opening POS with an empty cart, check for an existing running order
+  useEffect(() => {
+    if (orderType !== 'DINE_IN' || !selectedTableNumber) return;
+    if (cart.length > 0) return;
+
+    async function checkActiveTableOrder() {
+      try {
+        const res = await fetch(`/api/pos/orders?tableNumber=${selectedTableNumber}&status=PREPARING`);
+        const data = await res.json();
+        if (data.success && data.orders && data.orders.length > 0) {
+          const activeOrder = data.orders[0];
+          setCurrentOrderData(activeOrder);
+          loadOrder(activeOrder);
+          toast.info(`Loaded running bill for Table ${selectedTableNumber} (${activeOrder.orderNumber})`);
+        }
+      } catch (e) {}
+    }
+
+    checkActiveTableOrder();
+  }, [selectedTableNumber, orderType]);
+
   // Keyboard Shortcuts (F2: Search, F4: Hold, F8: Discount, F9: Settle, Esc: Clear)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -289,7 +310,7 @@ export default function PosBillingPage() {
       if (data.success && data.order) {
         setCurrentOrderData(data.order);
         setIsKotPrintOpen(true);
-        clearCart();
+        // Do NOT clear cart here: the customer is dining and the bill remains active until payment!
         toast.success(`KOT ${data.order.kotNumber} sent to Kitchen Display`);
       }
     } catch (err) {
@@ -300,36 +321,46 @@ export default function PosBillingPage() {
   // Settlement Callback
   const handlePaymentSettled = async (settleData: any) => {
     try {
-      // 1. Create Order
-      const res = await fetch('/api/pos/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outletId: selectedOutlet?.id || 'outlet-blr-ind-001',
-          orderType,
-          tableNumber: selectedTableNumber,
-          customerName: customer?.name,
-          customerPhone: customer?.phone,
-          items: cart,
-          discountPercent: discountType === 'PERCENT' ? discountValue : 0,
-          discountAmount: discountType === 'FLAT' ? discountValue : 0,
-          discountReason,
-          autoKOT: true,
-        }),
-      });
+      let orderIdToSettle = currentOrderData?.id;
 
-      const data = await res.json();
-      if (data.success && data.order) {
+      // 1. If an order hasn't been created yet (direct settlement without prior KOT), create it first
+      if (!orderIdToSettle) {
+        const res = await fetch('/api/pos/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            outletId: selectedOutlet?.id || 'outlet-blr-ind-001',
+            orderType,
+            tableNumber: selectedTableNumber,
+            customerName: customer?.name,
+            customerPhone: customer?.phone,
+            items: cart,
+            discountPercent: discountType === 'PERCENT' ? discountValue : 0,
+            discountAmount: discountType === 'FLAT' ? discountValue : 0,
+            discountReason,
+            autoKOT: true,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success && data.order) {
+          orderIdToSettle = data.order.id;
+          setCurrentOrderData(data.order);
+        }
+      }
+
+      if (orderIdToSettle) {
         // 2. Settle Order
-        const settleRes = await fetch(`/api/pos/orders/${data.order.id}/settle`, {
+        const settleRes = await fetch(`/api/pos/orders/${orderIdToSettle}/settle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(settleData),
         });
         const settleResData = await settleRes.json();
 
-        setCurrentOrderData(settleResData.order || data.order);
+        setCurrentOrderData(settleResData.order || currentOrderData);
         setIsBillPrintOpen(true);
+        // Clear active cart only after payment is completely settled!
         clearCart();
         toast.success('Bill successfully settled and closed!');
       }
@@ -667,6 +698,17 @@ export default function PosBillingPage() {
               )}
             </div>
 
+            {/* Active KOT Status Banner */}
+            {currentOrderData?.kotNumber && cart.length > 0 && (
+              <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{currentOrderData.kotNumber} Active in Kitchen</span>
+                </div>
+                <span className="font-mono text-[10px] text-muted-foreground">{currentOrderData.orderNumber}</span>
+              </div>
+            )}
+
             {/* Cart Items Title */}
             <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
               <span>Current Cart ({totals.totalItems})</span>
@@ -809,12 +851,12 @@ export default function PosBillingPage() {
 
           {/* Action Buttons Toolbar */}
           <div className="p-3 border-t bg-card space-y-2">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleHoldBill}
-                className="rounded-xl text-xs font-semibold"
+                className="rounded-xl text-xs font-semibold px-2"
               >
                 <PauseCircle className="h-3.5 w-3.5 mr-1 text-amber-600" />
                 Hold (F4)
@@ -824,10 +866,49 @@ export default function PosBillingPage() {
                 variant="outline"
                 size="sm"
                 onClick={handlePunchKOT}
-                className="rounded-xl text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                className="rounded-xl text-xs font-semibold text-emerald-700 hover:bg-emerald-50 px-2"
               >
                 <FileText className="h-3.5 w-3.5 mr-1" />
                 KOT Only
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (cart.length === 0) {
+                    toast.error('Add items to cart before printing bill');
+                    return;
+                  }
+                  if (!currentOrderData) {
+                    setCurrentOrderData({
+                      orderNumber: `ORD-RUNNING-${selectedTableNumber}`,
+                      orderType,
+                      tableNumber: selectedTableNumber,
+                      customerName: customer?.name || 'Walk-in Guest',
+                      customerPhone: customer?.phone || '',
+                      subtotal: totals.subtotal,
+                      discountAmount: totals.discountAmount,
+                      discountReason,
+                      cgstAmount: totals.cgstAmount,
+                      sgstAmount: totals.sgstAmount,
+                      taxAmount: totals.totalTax,
+                      serviceCharge: totals.serviceCharge,
+                      packagingCharge: totals.packagingCharge,
+                      deliveryCharge: totals.deliveryCharge,
+                      roundOff: totals.roundOff,
+                      totalAmount: totals.grandTotal,
+                      paymentMethod: 'CASH',
+                      items: cart,
+                      createdAt: new Date(),
+                    });
+                  }
+                  setIsBillPrintOpen(true);
+                }}
+                className="rounded-xl text-xs font-semibold text-orange-600 hover:bg-orange-50 px-2"
+              >
+                <Printer className="h-3.5 w-3.5 mr-1" />
+                Print Bill
               </Button>
             </div>
 

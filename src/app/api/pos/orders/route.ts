@@ -51,19 +51,27 @@ const createOrderSchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     const session = await getSessionUser();
-    const brandId = session?.brandId || 'brand-restodesk-001';
+    let brandId = session?.brandId;
+    if (!brandId || brandId.startsWith('brand-')) {
+      const b = await prisma.brand.findFirst().catch(() => null);
+      if (b) brandId = b.id;
+    }
+    if (!brandId) brandId = 'brand-restodesk-001';
 
     const { searchParams } = new URL(req.url);
     const outletId = searchParams.get('outletId');
     const status = searchParams.get('status');
     const orderType = searchParams.get('orderType');
+    const tableNumber = searchParams.get('tableNumber');
 
     let orders: any[] = [];
     try {
-      const whereClause: any = { brandId, isDeleted: false };
-      if (outletId) whereClause.outletId = outletId;
+      const whereClause: any = { isDeleted: false };
+      if (brandId && !brandId.startsWith('brand-')) whereClause.brandId = brandId;
+      if (outletId && !outletId.startsWith('outlet-')) whereClause.outletId = outletId;
       if (status && status !== 'ALL') whereClause.status = status as OrderStatus;
       if (orderType && orderType !== 'ALL') whereClause.orderType = orderType as OrderType;
+      if (tableNumber) whereClause.table = { tableNumber };
 
       const dbOrders = await prisma.order.findMany({
         where: whereClause,
@@ -117,6 +125,10 @@ export async function GET(req: NextRequest) {
 
     if (orders.length === 0) {
       orders = MOCK_ORDERS;
+    }
+
+    if (tableNumber) {
+      orders = orders.filter((o) => o.tableNumber === tableNumber);
     }
 
     return NextResponse.json({ success: true, orders });
