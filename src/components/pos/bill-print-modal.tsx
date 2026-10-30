@@ -47,23 +47,23 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
         }`}
       >
         {/* Header with Format Switcher */}
-        <DialogHeader className="px-5 py-3.5 border-b bg-muted/20 flex flex-row items-center justify-between gap-4 pr-16 no-print shrink-0">
+        <DialogHeader className="px-4 sm:px-5 py-3 border-b bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 pr-12 sm:pr-16 no-print shrink-0">
           <div className="space-y-0.5 text-left">
-            <DialogTitle className="text-base font-bold flex items-center gap-2 tracking-tight">
-              <Printer className="h-4 w-4 text-orange-600" />
+            <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2 tracking-tight">
+              <Printer className="h-4 w-4 text-orange-600 shrink-0" />
               Bill &amp; Invoice Preview
             </DialogTitle>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] sm:text-xs text-muted-foreground">
               Order #{order.orderNumber} • Table {order.tableNumber || 'Takeaway'}
             </p>
           </div>
 
           {/* Toggle: 80mm Thermal vs Full A4 Tax Invoice */}
-          <div className="flex items-center gap-1 bg-muted/80 p-1 rounded-xl border shrink-0">
+          <div className="flex items-center gap-1 bg-muted/80 p-0.5 sm:p-1 rounded-xl border shrink-0">
             <button
               type="button"
               onClick={() => setPrintFormat('thermal')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 printFormat === 'thermal'
                   ? 'bg-white dark:bg-zinc-800 text-orange-600 shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -75,7 +75,7 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
             <button
               type="button"
               onClick={() => setPrintFormat('a4')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 printFormat === 'a4'
                   ? 'bg-white dark:bg-zinc-800 text-orange-600 shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'

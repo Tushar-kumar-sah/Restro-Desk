@@ -20,6 +20,9 @@ interface AppState {
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  isMobileMenuOpen: boolean;
+  setMobileMenuOpen: (open: boolean) => void;
+  toggleMobileMenu: () => void;
 
   // Date range filter
   dateRange: DateRangeFilter;
@@ -73,6 +76,9 @@ export const useAppStore = create<AppState>()(
       isSidebarCollapsed: false,
       toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
+      isMobileMenuOpen: false,
+      setMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
+      toggleMobileMenu: () => set((state) => ({ isMobileMenuOpen: !state.isMobileMenuOpen })),
 
       dateRange: {
         label: 'Today',

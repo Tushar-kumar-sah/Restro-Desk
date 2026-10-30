@@ -62,35 +62,35 @@ export function SettleModal({ isOpen, onClose, orderTotal, onSettled, customer }
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md sm:rounded-2xl p-0 overflow-hidden border shadow-2xl">
-        <DialogHeader className="p-4 border-b bg-muted/20">
-          <DialogTitle className="text-base font-bold flex items-center justify-between">
+        <DialogHeader className="p-4 pr-12 border-b bg-muted/20">
+          <DialogTitle className="text-sm sm:text-base font-bold flex items-center justify-between gap-2">
             <span className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-orange-600" />
+              <Receipt className="h-4 w-4 text-orange-600 shrink-0" />
               Settle &amp; Close Bill
             </span>
-            <span className="text-lg font-black text-orange-600">
+            <span className="text-base sm:text-lg font-black text-orange-600">
               {formatCurrency(orderTotal)}
             </span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="p-5 space-y-5">
+        <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
           {/* Payment Method Tabs */}
           <Tabs value={method} onValueChange={(val: any) => setMethod(val)}>
             <TabsList className="grid grid-cols-4 h-11 w-full p-1 bg-muted rounded-xl">
-              <TabsTrigger value="CASH" className="text-xs font-semibold rounded-lg flex items-center gap-1.5">
+              <TabsTrigger value="CASH" className="text-[11px] sm:text-xs font-semibold rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-2">
                 <Banknote className="h-3.5 w-3.5" />
                 Cash
               </TabsTrigger>
-              <TabsTrigger value="UPI_QR" className="text-xs font-semibold rounded-lg flex items-center gap-1.5">
+              <TabsTrigger value="UPI_QR" className="text-[11px] sm:text-xs font-semibold rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-2">
                 <QrCode className="h-3.5 w-3.5" />
                 UPI QR
               </TabsTrigger>
-              <TabsTrigger value="CARD" className="text-xs font-semibold rounded-lg flex items-center gap-1.5">
+              <TabsTrigger value="CARD" className="text-[11px] sm:text-xs font-semibold rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-2">
                 <CreditCard className="h-3.5 w-3.5" />
                 Card
               </TabsTrigger>
-              <TabsTrigger value="WALLET" className="text-xs font-semibold rounded-lg flex items-center gap-1.5">
+              <TabsTrigger value="WALLET" className="text-[11px] sm:text-xs font-semibold rounded-lg flex items-center justify-center gap-1 sm:gap-1.5 px-1 sm:px-2">
                 <Wallet className="h-3.5 w-3.5" />
                 Wallet
               </TabsTrigger>

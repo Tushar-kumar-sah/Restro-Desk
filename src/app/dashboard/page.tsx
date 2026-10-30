@@ -169,7 +169,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Hero KPI Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Net Sales */}
           <Card className="shadow-sm border-l-4 border-l-emerald-500">
             <CardHeader className="flex flex-row items-center justify-between pb-1 pt-4 px-4">

@@ -39,7 +39,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-interface NavItem {
+export interface NavItem {
   title: string;
   href: string;
   icon: React.ElementType;
@@ -47,12 +47,12 @@ interface NavItem {
   badgeVariant?: 'brand' | 'success' | 'warning' | 'info' | 'purple';
 }
 
-interface NavGroup {
+export interface NavGroup {
   label: string;
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'POS & Operations',
     items: [
@@ -127,7 +127,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'relative flex flex-col border-r bg-card h-screen transition-all duration-300 z-30 select-none no-print',
+        'hidden lg:flex relative flex-col border-r bg-card h-screen transition-all duration-300 z-30 select-none no-print',
         isSidebarCollapsed ? 'w-20' : 'w-72'
       )}
     >

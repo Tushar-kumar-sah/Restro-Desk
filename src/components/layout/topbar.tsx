@@ -15,6 +15,7 @@ import {
   Check,
   Wifi,
   Sparkles,
+  Menu,
 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ export function Topbar() {
     theme,
     setTheme,
     setIsSearchOpen,
+    setMobileMenuOpen,
   } = useAppStore();
 
   const [isOutletMenuOpen, setIsOutletMenuOpen] = useState(false);
@@ -109,31 +111,40 @@ export function Topbar() {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b bg-card px-4 md:px-6 shadow-sm no-print">
+    <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b bg-card px-2.5 sm:px-4 md:px-6 shadow-sm no-print">
       {/* Left: Outlet Switcher & Quick Navigation */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+        {/* Mobile Hamburger Menu Button */}
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+          title="Open Navigation Menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
         {/* Outlet Switcher Dropdown */}
-        <div className="relative">
+        <div className="relative min-w-0">
           <button
             onClick={() => {
               setIsOutletMenuOpen(!isOutletMenuOpen);
               setIsDateMenuOpen(false);
               setIsProfileMenuOpen(false);
             }}
-            className="flex items-center gap-2.5 rounded-xl border border-input bg-background/80 hover:bg-muted/60 px-3 py-1.5 text-sm font-medium transition-all shadow-sm"
+            className="flex items-center gap-2 rounded-xl border border-input bg-background/80 hover:bg-muted/60 px-2 sm:px-3 py-1.5 text-sm font-medium transition-all shadow-sm max-w-[180px] sm:max-w-none"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 shrink-0">
               <Store className="h-4 w-4" />
             </div>
-            <div className="flex flex-col text-left">
-              <span className="text-xs font-semibold leading-tight text-foreground truncate max-w-[140px] sm:max-w-[200px]">
+            <div className="flex flex-col text-left min-w-0">
+              <span className="text-xs font-semibold leading-tight text-foreground truncate max-w-[85px] sm:max-w-[160px] md:max-w-[200px]">
                 {selectedOutlet?.name || 'Select Outlet'}
               </span>
-              <span className="text-[10px] text-muted-foreground truncate">
+              <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">
                 {selectedOutlet?.city ? `${selectedOutlet.city} • ${selectedOutlet.code}` : 'All Outlets'}
               </span>
             </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           </button>
 
           {isOutletMenuOpen && (
