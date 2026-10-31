@@ -18,6 +18,7 @@ import {
   Navigation,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AppShell } from '@/components/layout/app-shell';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -136,7 +137,8 @@ export default function DeliveryFleetPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <AppShell>
+      <div className="space-y-6">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -422,6 +424,7 @@ export default function DeliveryFleetPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AppShell>
   );
 }

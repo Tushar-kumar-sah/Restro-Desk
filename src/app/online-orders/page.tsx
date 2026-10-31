@@ -23,6 +23,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AppShell } from '@/components/layout/app-shell';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -253,7 +254,8 @@ export default function OnlineOrdersPage() {
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <AppShell>
+      <div className="space-y-6">
       {/* Top Aggregators Control Strip */}
       <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -787,6 +789,7 @@ export default function OnlineOrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AppShell>
   );
 }
