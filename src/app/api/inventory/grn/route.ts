@@ -8,6 +8,7 @@ import {
   MOCK_SUPPLIERS,
   MockGRN,
   MockGRNItem,
+  recordStockMovement,
 } from '@/lib/mock-data';
 
 const GRNItemInputSchema = z.object({
@@ -106,6 +107,25 @@ export async function POST(req: NextRequest) {
       rm.currentStock = Math.round((rm.currentStock + line.acceptedQty) * 100) / 100;
       // Weighted average cost update
       rm.costPerUnit = line.unitPrice;
+
+      // Record in Stock Movement Ledger
+      recordStockMovement({
+        outletId: validated.outletId,
+        date: new Date().toISOString(),
+        rawMaterialId: rm.id,
+        rawMaterialName: rm.name,
+        sku: rm.sku,
+        category: rm.category,
+        unit: rm.unit,
+        type: 'STOCK_IN',
+        changeQty: line.acceptedQty,
+        balanceAfter: rm.currentStock,
+        costPerUnit: line.unitPrice,
+        totalCostImpact: lineTotal,
+        reference: `GRN #${grnNumber} (${supplier.name})`,
+        recordedBy: 'Store Supervisor',
+        notes: `PO: ${po?.poNumber || 'Direct GRN'} • Invoice: ${validated.invoiceNumber}`,
+      });
     }
 
     // Update supplier ledger balance

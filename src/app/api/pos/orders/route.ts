@@ -3,7 +3,14 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { OrderType, OrderStatus } from '@prisma/client';
-import { MOCK_ORDERS, MOCK_KOTS, MOCK_TABLES } from '@/lib/mock-data';
+import {
+  MOCK_ORDERS,
+  MOCK_KOTS,
+  MOCK_TABLES,
+  MOCK_RECIPES,
+  MOCK_RAW_MATERIALS,
+  recordStockMovement,
+} from '@/lib/mock-data';
 import { invalidateCache } from '@/lib/cache';
 import { autoSyncCustomerFromBill } from '@/lib/crm';
 
@@ -258,6 +265,55 @@ export async function POST(req: NextRequest) {
     };
 
     MOCK_ORDERS.unshift(newOrder);
+
+    // 0. Auto Recipe (BOM) Stock Deductions
+    try {
+      for (const pi of processedItems) {
+        const recipe = MOCK_RECIPES.find(
+          (r) =>
+            r.itemId === pi.itemId ||
+            (pi as any).id === r.itemId ||
+            r.itemName.toLowerCase() === (pi.name || '').toLowerCase()
+        );
+        if (recipe && recipe.ingredients) {
+          for (const ing of recipe.ingredients) {
+            const rm = MOCK_RAW_MATERIALS.find((m) => m.id === ing.rawMaterialId);
+            if (rm) {
+              // Unit conversion factor
+              let factor = 1;
+              if (ing.unit === 'GRAM' && rm.unit === 'KG') factor = 0.001;
+              else if (ing.unit === 'ML' && rm.unit === 'LITER') factor = 0.001;
+              else if (ing.unit === 'KG' && rm.unit === 'GRAM') factor = 1000;
+              else if (ing.unit === 'LITER' && rm.unit === 'ML') factor = 1000;
+
+              const consumedQty = Math.round(ing.quantity * factor * (pi.quantity || 1) * 1000) / 1000;
+              if (consumedQty > 0) {
+                rm.currentStock = Math.max(0, Math.round((rm.currentStock - consumedQty) * 100) / 100);
+                recordStockMovement({
+                  outletId,
+                  date: new Date().toISOString(),
+                  rawMaterialId: rm.id,
+                  rawMaterialName: rm.name,
+                  sku: rm.sku,
+                  category: rm.category,
+                  unit: rm.unit,
+                  type: 'RECIPE_CONSUMPTION',
+                  changeQty: -consumedQty,
+                  balanceAfter: rm.currentStock,
+                  costPerUnit: rm.costPerUnit,
+                  totalCostImpact: -Math.round(consumedQty * rm.costPerUnit * 100) / 100,
+                  reference: `POS Order #${orderNumber} (${pi.quantity}x ${pi.name})`,
+                  recordedBy: 'Auto Recipe BOM Engine',
+                  notes: `${ing.quantity} ${ing.unit} per dish deducted for kitchen order`,
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (recipeErr) {
+      console.warn('Recipe deduction error (non-fatal):', recipeErr);
+    }
 
     // 1. Fire KOT to Kitchen Display System (KDS)
     if (data.autoKOT) {

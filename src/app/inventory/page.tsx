@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { AppShell } from '@/components/layout/app-shell';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,13 @@ import {
   Check,
   X,
   Info,
+  History,
+  ArrowUpDown,
+  Truck,
+  Utensils,
+  ChefHat,
+  Eye,
+  FileText,
 } from 'lucide-react';
 
 interface RawMaterialItem {
@@ -49,6 +57,24 @@ interface RawMaterialItem {
   currentStock: number;
   minAlertStock: number;
   costPerUnit: number;
+}
+
+interface StockMovementRecord {
+  id: string;
+  date: string;
+  rawMaterialId: string;
+  rawMaterialName: string;
+  sku: string;
+  category: string;
+  unit: string;
+  type: 'STOCK_IN' | 'RECIPE_CONSUMPTION' | 'WASTAGE' | 'MANUAL_ADJUSTMENT' | 'AUDIT_RECONCILIATION';
+  changeQty: number;
+  balanceAfter: number;
+  costPerUnit: number;
+  totalCostImpact: number;
+  reference: string;
+  recordedBy: string;
+  notes?: string;
 }
 
 interface WastageItemRecord {
@@ -92,7 +118,25 @@ export default function InventoryPage() {
   const [materials, setMaterials] = useState<RawMaterialItem[]>([]);
   const [wastageList, setWastageList] = useState<WastageItemRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'stock' | 'alerts' | 'wastage'>('stock');
+  const [activeTab, setActiveTab] = useState<'stock' | 'alerts' | 'movements' | 'wastage'>('stock');
+
+  // Stock Movement Ledger State
+  const [movements, setMovements] = useState<StockMovementRecord[]>([]);
+  const [movementsLoading, setMovementsLoading] = useState(false);
+  const [movementSearch, setMovementSearch] = useState('');
+  const [movementTypeFilter, setMovementTypeFilter] = useState('ALL');
+  const [movementMetrics, setMovementMetrics] = useState({
+    totalMovements: 0,
+    totalStockInCount: 0,
+    totalStockOutCount: 0,
+    totalAddedQty: 0,
+    totalDeductedQty: 0,
+  });
+
+  // Per-item History modal state
+  const [historyMaterial, setHistoryMaterial] = useState<RawMaterialItem | null>(null);
+  const [itemMovements, setItemMovements] = useState<StockMovementRecord[]>([]);
+  const [itemMovementsLoading, setItemMovementsLoading] = useState(false);
 
   const [metrics, setMetrics] = useState({
     totalItems: 0,
@@ -194,9 +238,52 @@ export default function InventoryPage() {
     }
   };
 
+  const fetchMovements = async () => {
+    try {
+      setMovementsLoading(true);
+      const params = new URLSearchParams();
+      if (movementSearch) params.append('search', movementSearch);
+      if (movementTypeFilter !== 'ALL') params.append('type', movementTypeFilter);
+
+      const res = await fetch(`/api/inventory/movements?${params.toString()}`);
+      const data = await res.json();
+      if (data.success) {
+        setMovements(data.movements || []);
+        if (data.metrics) setMovementMetrics(data.metrics);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMovementsLoading(false);
+    }
+  };
+
+  const openItemHistory = async (material: RawMaterialItem) => {
+    setHistoryMaterial(material);
+    setItemMovementsLoading(true);
+    try {
+      const res = await fetch(`/api/inventory/movements?rawMaterialId=${material.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setItemMovements(data.movements || []);
+      } else {
+        setItemMovements([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setItemMovements([]);
+    } finally {
+      setItemMovementsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchInventory();
   }, [search, categoryFilter, statusFilter]);
+
+  useEffect(() => {
+    fetchMovements();
+  }, [movementSearch, movementTypeFilter, activeTab]);
 
   // Handle Add Ingredient
   const handleCreateMaterial = async (e: React.FormEvent) => {
@@ -332,13 +419,18 @@ export default function InventoryPage() {
       const res = await fetch(`/api/inventory/raw-materials/${selectedMaterial.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentStock: newStock }),
+        body: JSON.stringify({
+          currentStock: newStock,
+          reason: adjustData.reason,
+          notes: `${adjustData.type === 'ADD' ? '+' : adjustData.type === 'SUBTRACT' ? '-' : 'Set to '}${adjustData.delta} ${selectedMaterial.unit} by Store Supervisor`,
+        }),
       });
       const data = await res.json();
       if (data.success) {
         toast.success(`Stock for ${selectedMaterial.name} updated to ${newStock} ${selectedMaterial.unit}`);
         setIsAdjustModalOpen(false);
         fetchInventory();
+        fetchMovements();
       } else {
         toast.error(data.message || 'Failed to update stock');
       }
@@ -385,6 +477,7 @@ export default function InventoryPage() {
         toast.success(data.message || 'Kitchen wastage logged and stock deducted');
         setIsWastageModalOpen(false);
         fetchInventory();
+        fetchMovements();
       } else {
         toast.error(data.message || 'Failed to log wastage');
       }
@@ -446,6 +539,7 @@ export default function InventoryPage() {
         setIsAuditModalOpen(false);
         setAuditCounts({});
         fetchInventory();
+        fetchMovements();
       } else {
         toast.error(data.message || 'Audit reconciliation failed');
       }
@@ -628,18 +722,72 @@ export default function InventoryPage() {
           </Card>
         </div>
 
+        {/* Low Stock Warning Banner */}
+        {metrics.lowStockCount > 0 && (
+          <div className="p-4 rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 via-amber-50/70 to-orange-50/40 dark:from-amber-950/40 dark:via-amber-900/20 dark:to-orange-950/20 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-lg bg-amber-500 text-white shrink-0 mt-0.5 shadow-sm">
+                <AlertTriangle className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-sm text-neutral-900 dark:text-white">
+                    Low Stock Alert: {metrics.lowStockCount} {metrics.lowStockCount === 1 ? 'ingredient is' : 'ingredients are'} below safety reorder threshold!
+                  </h4>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 dark:bg-amber-800 dark:text-amber-100">
+                    Action Required
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
+                  Urgent replenishment needed for:{' '}
+                  <strong className="text-neutral-800 dark:text-neutral-200">
+                    {materials
+                      .filter((m) => m.currentStock <= m.minAlertStock)
+                      .slice(0, 4)
+                      .map((m) => `${m.name} (${m.currentStock} / min ${m.minAlertStock} ${m.unit})`)
+                      .join(' • ')}
+                  </strong>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setActiveTab('alerts')}
+                className="text-xs font-semibold border-amber-300 text-amber-800 bg-white/90 dark:bg-neutral-900 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950"
+              >
+                View Low-Stock Tab
+              </Button>
+              <Link href="/inventory/purchase">
+                <Button
+                  size="sm"
+                  className="text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-sm"
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  Create Purchase Order
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Main Content Tabs */}
         <Tabs
           value={activeTab}
           onValueChange={(val: any) => setActiveTab(val)}
           className="space-y-4"
         >
-          <TabsList className="bg-neutral-100 dark:bg-neutral-800 p-1">
+          <TabsList className="bg-neutral-100 dark:bg-neutral-800 p-1 flex-wrap h-auto">
             <TabsTrigger value="stock" className="text-xs font-semibold">
               All Ingredients ({metrics.totalItems || materials.length})
             </TabsTrigger>
             <TabsTrigger value="alerts" className="text-xs font-semibold">
               Low-Stock Alerts ({metrics.lowStockCount})
+            </TabsTrigger>
+            <TabsTrigger value="movements" className="text-xs font-semibold flex items-center gap-1.5">
+              <ArrowUpDown className="w-3.5 h-3.5 text-blue-600" />
+              Stock Movements (In/Out Ledger)
             </TabsTrigger>
             <TabsTrigger value="wastage" className="text-xs font-semibold">
               Kitchen Wastage Logs ({wastageList.length})
@@ -838,6 +986,31 @@ export default function InventoryPage() {
 
                             <td className="py-3.5 px-4 text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-1">
+                                {isLow && (
+                                  <Link href={`/inventory/purchase?reorderSku=${encodeURIComponent(m.sku)}&name=${encodeURIComponent(m.name)}`}>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      title={`Create Purchase Order to reorder ${m.name}`}
+                                      className="h-8 text-xs font-semibold gap-1 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 bg-amber-50/70 hover:bg-amber-100 dark:hover:bg-amber-950/60"
+                                    >
+                                      <Truck className="w-3.5 h-3.5 text-amber-600" />
+                                      Reorder
+                                    </Button>
+                                  </Link>
+                                )}
+
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openItemHistory(m)}
+                                  title={`View In/Out Movement History for ${m.name}`}
+                                  className="h-8 text-xs font-medium gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                                >
+                                  <History className="h-3.5 w-3.5" />
+                                  History
+                                </Button>
+
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -952,7 +1125,28 @@ export default function InventoryPage() {
                           </div>
                         </div>
 
-                        <div className="mt-4 pt-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-end gap-2">
+                        <div className="mt-4 pt-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-end gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openItemHistory(m)}
+                            className="h-8 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1"
+                          >
+                            <History className="w-3.5 h-3.5" />
+                            History
+                          </Button>
+
+                          <Link href={`/inventory/purchase?reorderSku=${encodeURIComponent(m.sku)}&name=${encodeURIComponent(m.name)}`}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs font-semibold text-neutral-800 dark:text-neutral-200 border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 gap-1"
+                            >
+                              <Truck className="w-3.5 h-3.5 text-amber-600" />
+                              Reorder PO
+                            </Button>
+                          </Link>
+
                           <Button
                             size="sm"
                             onClick={() => {
@@ -964,7 +1158,7 @@ export default function InventoryPage() {
                               });
                               setIsAdjustModalOpen(true);
                             }}
-                            className="h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white gap-1"
+                            className="h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white gap-1 shadow-sm"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             Replenish Stock
@@ -1057,6 +1251,277 @@ export default function InventoryPage() {
                           </td>
                         </tr>
                       ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* TAB 4: STOCK MOVEMENTS (IN / OUT LEDGER) */}
+          <TabsContent value="movements" className="space-y-4">
+            {/* Quick Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Card className="bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900 shadow-sm">
+                <CardContent className="p-3.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                      Stock Inflow (+)
+                    </p>
+                    <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
+                      +{movementMetrics.totalAddedQty} units
+                    </p>
+                    <p className="text-[11px] text-emerald-600/80">
+                      {movementMetrics.totalStockInCount} receipt events
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900 text-emerald-700">
+                    <ArrowUpRight className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900 shadow-sm">
+                <CardContent className="p-3.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider">
+                      Stock Outflow / Consumed (-)
+                    </p>
+                    <p className="text-xl font-bold text-blue-700 dark:text-blue-300 mt-0.5">
+                      -{movementMetrics.totalDeductedQty} units
+                    </p>
+                    <p className="text-[11px] text-blue-600/80">
+                      {movementMetrics.totalStockOutCount} consumption/waste events
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900 text-blue-700">
+                    <ArrowDownRight className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-neutral-50 dark:bg-neutral-900/40 border-neutral-200 dark:border-neutral-800 shadow-sm">
+                <CardContent className="p-3.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                      Total Ledger Records
+                    </p>
+                    <p className="text-xl font-bold text-neutral-900 dark:text-white mt-0.5">
+                      {movementMetrics.totalMovements || movements.length} Events
+                    </p>
+                    <p className="text-[11px] text-neutral-400">
+                      Auto-synced with POS & GRN
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Movement Filter Bar */}
+            <Card className="shadow-sm">
+              <CardContent className="p-4 flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-neutral-400" />
+                  <Input
+                    placeholder="Search by ingredient, SKU, PO/GRN number, or POS order..."
+                    value={movementSearch}
+                    onChange={(e) => setMovementSearch(e.target.value)}
+                    className="pl-9 bg-neutral-50 dark:bg-neutral-900 text-xs"
+                  />
+                  {movementSearch && (
+                    <button
+                      onClick={() => setMovementSearch('')}
+                      className="absolute right-3 top-3 text-neutral-400 hover:text-neutral-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={movementTypeFilter}
+                    onChange={(e) => setMovementTypeFilter(e.target.value)}
+                    className="text-xs font-medium px-3 py-2 rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 outline-none"
+                  >
+                    <option value="ALL">All Movement Types</option>
+                    <option value="STOCK_IN">+ Stock Received (GRN / Supplier)</option>
+                    <option value="RECIPE_CONSUMPTION">- Recipe Deductions (POS Orders)</option>
+                    <option value="WASTAGE">- Kitchen Wastage Logs</option>
+                    <option value="MANUAL_ADJUSTMENT">± Manual Quick Adjustments</option>
+                    <option value="AUDIT_RECONCILIATION">± Physical Audit Reconciliation</option>
+                  </select>
+
+                  {(movementSearch || movementTypeFilter !== 'ALL') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setMovementSearch('');
+                        setMovementTypeFilter('ALL');
+                      }}
+                      className="text-xs text-neutral-500 h-9 gap-1"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Reset
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Movements Ledger Table */}
+            <Card className="shadow-sm overflow-hidden border border-neutral-200 dark:border-neutral-800">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-neutral-50 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 uppercase font-semibold">
+                    <tr>
+                      <th className="py-3 px-4">Date & Time</th>
+                      <th className="py-3 px-4">Raw Material & SKU</th>
+                      <th className="py-3 px-4">Movement Type</th>
+                      <th className="py-3 px-4">Quantity Added / Removed</th>
+                      <th className="py-3 px-4">Balance After</th>
+                      <th className="py-3 px-4">Reference & Reason</th>
+                      <th className="py-3 px-4">Recorded By</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                    {movementsLoading ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-neutral-500 text-xs">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-emerald-600" />
+                          Loading stock movement ledger...
+                        </td>
+                      </tr>
+                    ) : movements.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-neutral-400">
+                          <ArrowUpDown className="w-8 h-8 mx-auto mb-2 opacity-30 text-neutral-400" />
+                          <p className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+                            No stock movements found
+                          </p>
+                          <p className="text-xs text-neutral-400 mt-1">
+                            Movements are recorded automatically when POs are received, orders are placed, or wastage is logged.
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      movements.map((mov) => {
+                        const isPositive = mov.changeQty > 0;
+                        const targetMaterial = materials.find((m) => m.id === mov.rawMaterialId);
+
+                        return (
+                          <tr
+                            key={mov.id}
+                            className="hover:bg-neutral-50 dark:hover:bg-neutral-900/40 transition-colors"
+                          >
+                            <td className="py-3.5 px-4 whitespace-nowrap text-neutral-500 font-mono text-[11px]">
+                              {new Date(mov.date).toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                              <div className="text-[10px] text-neutral-400">
+                                {new Date(mov.date).toLocaleTimeString('en-IN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            </td>
+
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <p className="font-semibold text-neutral-900 dark:text-white">
+                                {mov.rawMaterialName}
+                              </p>
+                              <span className="font-mono text-[11px] text-neutral-400">
+                                {mov.sku} • {mov.category}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              {mov.type === 'STOCK_IN' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                  <ArrowUpRight className="w-3 h-3 text-emerald-600" />
+                                  Stock Received (GRN)
+                                </span>
+                              )}
+                              {mov.type === 'RECIPE_CONSUMPTION' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                  <ChefHat className="w-3 h-3 text-blue-600" />
+                                  Recipe Consumption (POS)
+                                </span>
+                              )}
+                              {mov.type === 'WASTAGE' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+                                  <Trash2 className="w-3 h-3 text-red-600" />
+                                  Kitchen Wastage
+                                </span>
+                              )}
+                              {mov.type === 'MANUAL_ADJUSTMENT' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                  <RotateCcw className="w-3 h-3 text-amber-600" />
+                                  Manual Adjustment
+                                </span>
+                              )}
+                              {mov.type === 'AUDIT_RECONCILIATION' && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                                  <ClipboardList className="w-3 h-3 text-purple-600" />
+                                  Audit Reconciliation
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-4 whitespace-nowrap">
+                              <span
+                                className={`font-bold font-mono text-xs px-2 py-0.5 rounded-md ${
+                                  isPositive
+                                    ? 'text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/60'
+                                    : 'text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-950/60'
+                                }`}
+                              >
+                                {isPositive ? `+${mov.changeQty}` : mov.changeQty} {mov.unit}
+                              </span>
+                            </td>
+
+                            <td className="py-3.5 px-4 whitespace-nowrap font-mono font-bold text-neutral-800 dark:text-neutral-200 text-xs">
+                              {mov.balanceAfter} {mov.unit}
+                            </td>
+
+                            <td className="py-3.5 px-4 max-w-xs">
+                              <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate" title={mov.reference}>
+                                {mov.reference}
+                              </p>
+                              {mov.notes && (
+                                <p className="text-[10px] text-neutral-400 truncate" title={mov.notes}>
+                                  {mov.notes}
+                                </p>
+                              )}
+                            </td>
+
+                            <td className="py-3.5 px-4 whitespace-nowrap text-neutral-600 dark:text-neutral-400 text-xs">
+                              {mov.recordedBy}
+                            </td>
+
+                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                              {targetMaterial && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openItemHistory(targetMaterial)}
+                                  className="h-7 text-[11px] text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 gap-1"
+                                >
+                                  <History className="w-3 h-3" />
+                                  Item History
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -1812,6 +2277,256 @@ export default function InventoryPage() {
                 {isSubmitting ? 'Restoring...' : 'Yes, Delete & Restore Stock'}
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ========================================================================= */}
+        {/* ITEM IN/OUT STOCK MOVEMENT HISTORY MODAL */}
+        {/* ========================================================================= */}
+        <Dialog
+          open={!!historyMaterial}
+          onOpenChange={(open) => !open && setHistoryMaterial(null)}
+        >
+          <DialogContent className="max-w-3xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
+            {historyMaterial && (
+              <>
+                <DialogHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                          <History className="w-5 h-5 text-blue-600" />
+                          <span>{historyMaterial.name}</span>
+                        </DialogTitle>
+                        <Badge variant="outline" className="text-xs">
+                          {historyMaterial.category}
+                        </Badge>
+                      </div>
+                      <DialogDescription className="mt-1 font-mono text-xs">
+                        SKU: {historyMaterial.sku} • Cost: {formatCurrency(historyMaterial.costPerUnit)} / {historyMaterial.unit}
+                      </DialogDescription>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {historyMaterial.currentStock <= historyMaterial.minAlertStock ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                          Low Stock Alert
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          Optimal Level
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                {/* Stock KPI Pills */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-2">
+                  <div className="p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800">
+                    <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
+                      Current Stock
+                    </p>
+                    <p className="text-lg font-bold text-neutral-900 dark:text-white mt-0.5">
+                      {historyMaterial.currentStock} {historyMaterial.unit}
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800">
+                    <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider">
+                      Min Alert Level
+                    </p>
+                    <p className="text-lg font-bold text-neutral-900 dark:text-white mt-0.5">
+                      {historyMaterial.minAlertStock} {historyMaterial.unit}
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-900">
+                    <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">
+                      Total Added (+)
+                    </p>
+                    <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">
+                      +{itemMovements.filter((m) => m.changeQty > 0).reduce((acc, m) => acc + m.changeQty, 0)} {historyMaterial.unit}
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-red-50/60 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-900">
+                    <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wider">
+                      Total Deducted (-)
+                    </p>
+                    <p className="text-lg font-bold text-red-700 dark:text-red-300 mt-0.5">
+                      -{Math.abs(itemMovements.filter((m) => m.changeQty < 0).reduce((acc, m) => acc + m.changeQty, 0))} {historyMaterial.unit}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Movements Ledger for this item */}
+                <div className="space-y-2 mt-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                    Movement & Consumption Timeline ({itemMovements.length})
+                  </h4>
+
+                  <div className="border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden">
+                    <div className="max-h-72 overflow-y-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-neutral-50 dark:bg-neutral-900 text-neutral-500 uppercase font-semibold sticky top-0 border-b">
+                          <tr>
+                            <th className="py-2.5 px-3">Date</th>
+                            <th className="py-2.5 px-3">Type</th>
+                            <th className="py-2.5 px-3">Quantity</th>
+                            <th className="py-2.5 px-3">Balance After</th>
+                            <th className="py-2.5 px-3">Reference / Notes</th>
+                            <th className="py-2.5 px-3">User</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                          {itemMovementsLoading ? (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-neutral-400">
+                                <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-blue-600" />
+                                Loading movements...
+                              </td>
+                            </tr>
+                          ) : itemMovements.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-neutral-400">
+                                No movements recorded yet for this item.
+                              </td>
+                            </tr>
+                          ) : (
+                            itemMovements.map((mov) => {
+                              const isPositive = mov.changeQty > 0;
+                              return (
+                                <tr key={mov.id} className="hover:bg-neutral-50/60 dark:hover:bg-neutral-900/40">
+                                  <td className="py-2.5 px-3 font-mono text-[11px] whitespace-nowrap text-neutral-500">
+                                    {new Date(mov.date).toLocaleDateString('en-IN', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                    })}
+                                    <span className="text-[10px] text-neutral-400 block">
+                                      {new Date(mov.date).toLocaleTimeString('en-IN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })}
+                                    </span>
+                                  </td>
+
+                                  <td className="py-2.5 px-3 whitespace-nowrap">
+                                    {mov.type === 'STOCK_IN' && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                        <ArrowUpRight className="w-3 h-3 text-emerald-600" />
+                                        Stock In
+                                      </span>
+                                    )}
+                                    {mov.type === 'RECIPE_CONSUMPTION' && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                        <ChefHat className="w-3 h-3 text-blue-600" />
+                                        Recipe (POS)
+                                      </span>
+                                    )}
+                                    {mov.type === 'WASTAGE' && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+                                        <Trash2 className="w-3 h-3 text-red-600" />
+                                        Wastage
+                                      </span>
+                                    )}
+                                    {mov.type === 'MANUAL_ADJUSTMENT' && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                        <RotateCcw className="w-3 h-3 text-amber-600" />
+                                        Adjusted
+                                      </span>
+                                    )}
+                                    {mov.type === 'AUDIT_RECONCILIATION' && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                                        <ClipboardList className="w-3 h-3 text-purple-600" />
+                                        Audit
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  <td className="py-2.5 px-3 whitespace-nowrap">
+                                    <span
+                                      className={`font-bold font-mono text-xs ${
+                                        isPositive ? 'text-emerald-600' : 'text-red-600'
+                                      }`}
+                                    >
+                                      {isPositive ? `+${mov.changeQty}` : mov.changeQty} {mov.unit}
+                                    </span>
+                                  </td>
+
+                                  <td className="py-2.5 px-3 whitespace-nowrap font-mono font-semibold text-neutral-800 dark:text-neutral-200">
+                                    {mov.balanceAfter} {mov.unit}
+                                  </td>
+
+                                  <td className="py-2.5 px-3 max-w-xs">
+                                    <p className="font-medium truncate text-neutral-800 dark:text-neutral-200" title={mov.reference}>
+                                      {mov.reference}
+                                    </p>
+                                    {mov.notes && (
+                                      <p className="text-[10px] text-neutral-400 truncate" title={mov.notes}>
+                                        {mov.notes}
+                                      </p>
+                                    )}
+                                  </td>
+
+                                  <td className="py-2.5 px-3 text-neutral-500 whitespace-nowrap text-[11px]">
+                                    {mov.recordedBy}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <DialogFooter className="flex flex-row justify-between items-center sm:justify-between pt-3 border-t">
+                  <div className="flex items-center gap-2">
+                    <Link href={`/inventory/purchase?reorderSku=${encodeURIComponent(historyMaterial.sku)}&name=${encodeURIComponent(historyMaterial.name)}`}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs font-semibold gap-1 text-amber-700 border-amber-300 hover:bg-amber-50"
+                      >
+                        <Truck className="w-3.5 h-3.5 text-amber-600" />
+                        Create Reorder PO
+                      </Button>
+                    </Link>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedMaterial(historyMaterial);
+                        setAdjustData({
+                          delta: 5,
+                          type: 'ADD',
+                          reason: 'Manual adjustment',
+                        });
+                        setIsAdjustModalOpen(true);
+                      }}
+                      className="text-xs font-semibold gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                      Adjust Stock
+                    </Button>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setHistoryMaterial(null)}
+                    className="text-xs"
+                  >
+                    Close
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
           </DialogContent>
         </Dialog>
       </div>

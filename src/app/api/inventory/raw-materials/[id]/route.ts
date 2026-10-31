@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { MOCK_RAW_MATERIALS } from '@/lib/mock-data';
+import { MOCK_RAW_MATERIALS, recordStockMovement } from '@/lib/mock-data';
 
 const RawMaterialUpdateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -44,10 +44,32 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ success: false, message: 'Raw material not found' }, { status: 404 });
     }
 
+    const oldStock = material.currentStock;
     if (validated.name !== undefined) material.name = validated.name;
     if (validated.category !== undefined) material.category = validated.category;
     if (validated.unit !== undefined) material.unit = validated.unit;
-    if (validated.currentStock !== undefined) material.currentStock = validated.currentStock;
+    if (validated.currentStock !== undefined) {
+      material.currentStock = validated.currentStock;
+      const delta = Math.round((validated.currentStock - oldStock) * 100) / 100;
+      if (delta !== 0) {
+        recordStockMovement({
+          date: new Date().toISOString(),
+          rawMaterialId: material.id,
+          rawMaterialName: material.name,
+          sku: material.sku,
+          category: material.category,
+          unit: material.unit,
+          type: 'MANUAL_ADJUSTMENT',
+          changeQty: delta,
+          balanceAfter: material.currentStock,
+          costPerUnit: material.costPerUnit,
+          totalCostImpact: Math.round(delta * material.costPerUnit * 100) / 100,
+          reference: body.reason ? `Manual Adjust: ${body.reason}` : 'Manual Stock Adjustment',
+          recordedBy: body.recordedBy || 'Store Manager',
+          notes: body.notes || `Stock adjusted from ${oldStock} to ${material.currentStock} ${material.unit}`,
+        });
+      }
+    }
     if (validated.minAlertStock !== undefined) material.minAlertStock = validated.minAlertStock;
     if (validated.costPerUnit !== undefined) material.costPerUnit = validated.costPerUnit;
 

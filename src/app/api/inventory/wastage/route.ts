@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { MOCK_WASTAGE, MOCK_RAW_MATERIALS, MockWastage } from '@/lib/mock-data';
+import { MOCK_WASTAGE, MOCK_RAW_MATERIALS, MockWastage, recordStockMovement } from '@/lib/mock-data';
 
 const WastageItemSchema = z.object({
   rawMaterialId: z.string(),
@@ -62,6 +62,25 @@ export async function POST(req: NextRequest) {
 
       // DEDUCT FROM INVENTORY STOCK
       rm.currentStock = Math.max(0, Math.round((rm.currentStock - line.quantity) * 100) / 100);
+
+      // Record in Stock Movement Ledger
+      recordStockMovement({
+        outletId: validated.outletId,
+        date: new Date().toISOString(),
+        rawMaterialId: rm.id,
+        rawMaterialName: rm.name,
+        sku: rm.sku,
+        category: rm.category,
+        unit: rm.unit,
+        type: 'WASTAGE',
+        changeQty: -line.quantity,
+        balanceAfter: rm.currentStock,
+        costPerUnit: rm.costPerUnit,
+        totalCostImpact: -itemCost,
+        reference: `Wastage Log #${wastageNumber}`,
+        recordedBy: validated.recordedBy,
+        notes: `${validated.reason}${line.notes ? `: ${line.notes}` : ''}`,
+      });
     }
 
     const newWastage: MockWastage = {

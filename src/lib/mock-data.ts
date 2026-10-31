@@ -1696,6 +1696,285 @@ export let MOCK_WASTAGE: MockWastage[] = [
 ];
 
 // ==========================================
+// STOCK IN / OUT MOVEMENT LEDGER
+// ==========================================
+
+export type StockMovementType =
+  | 'STOCK_IN'              // Goods received from supplier (GRN) or stock replenishment
+  | 'RECIPE_CONSUMPTION'    // Deducted automatically when dishes are ordered in POS / aggregators
+  | 'WASTAGE'               // Kitchen spoilage, burning, expired items
+  | 'MANUAL_ADJUSTMENT'     // Manual addition/subtraction by manager
+  | 'AUDIT_RECONCILIATION'; // Discrepancy reconciled during physical stock count
+
+export interface MockStockMovement {
+  id: string;
+  brandId: string;
+  outletId: string;
+  date: string; // ISO 8601 string
+  rawMaterialId: string;
+  rawMaterialName: string;
+  sku: string;
+  category: string;
+  unit: string;
+  type: StockMovementType;
+  changeQty: number; // positive for IN (+), negative for OUT (-)
+  balanceAfter: number;
+  costPerUnit: number;
+  totalCostImpact: number;
+  reference: string; // e.g. "GRN #GRN-202610-001 (Amul Dairy)" or "POS Order #ORD-20261031-102"
+  recordedBy: string; // e.g. "POS Recipe BOM Engine", "Chef Sanjay Rawat", "Store Manager"
+  notes?: string;
+}
+
+export let MOCK_STOCK_MOVEMENTS: MockStockMovement[] = [
+  {
+    id: 'mov-001',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-27T08:30:00.000Z',
+    rawMaterialId: 'rm-01',
+    rawMaterialName: 'Fresh Malai Paneer',
+    sku: 'RM-PAN-01',
+    category: 'Dairy',
+    unit: 'KG',
+    type: 'STOCK_IN',
+    changeQty: 25.0,
+    balanceAfter: 20.5,
+    costPerUnit: 340.0,
+    totalCostImpact: 8500.0,
+    reference: 'GRN #GRN-202610-001 (Amul Dairy Distributors Ltd.)',
+    recordedBy: 'Store Supervisor',
+    notes: 'Verified against PO-202610-001 invoice #AM-8841',
+  },
+  {
+    id: 'mov-002',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-27T08:30:00.000Z',
+    rawMaterialId: 'rm-02',
+    rawMaterialName: 'Amul Butter (Salted)',
+    sku: 'RM-BUT-01',
+    category: 'Dairy',
+    unit: 'KG',
+    type: 'STOCK_IN',
+    changeQty: 15.0,
+    balanceAfter: 12.0,
+    costPerUnit: 520.0,
+    totalCostImpact: 7800.0,
+    reference: 'GRN #GRN-202610-001 (Amul Dairy Distributors Ltd.)',
+    recordedBy: 'Store Supervisor',
+    notes: 'Cold storage received at 4°C',
+  },
+  {
+    id: 'mov-003',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-27T08:30:00.000Z',
+    rawMaterialId: 'rm-03',
+    rawMaterialName: 'Amul Fresh Cooking Cream',
+    sku: 'RM-CRM-01',
+    category: 'Dairy',
+    unit: 'LITER',
+    type: 'STOCK_IN',
+    changeQty: 10.0,
+    balanceAfter: 6.5,
+    costPerUnit: 220.0,
+    totalCostImpact: 2200.0,
+    reference: 'GRN #GRN-202610-001 (Amul Dairy Distributors Ltd.)',
+    recordedBy: 'Store Supervisor',
+    notes: 'Batch exp: Nov 2026',
+  },
+  {
+    id: 'mov-004',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-27T11:15:00.000Z',
+    rawMaterialId: 'rm-01',
+    rawMaterialName: 'Fresh Malai Paneer',
+    sku: 'RM-PAN-01',
+    category: 'Dairy',
+    unit: 'KG',
+    type: 'WASTAGE',
+    changeQty: -2.0,
+    balanceAfter: 18.5,
+    costPerUnit: 340.0,
+    totalCostImpact: -680.0,
+    reference: 'Wastage Log #WST-202610-001',
+    recordedBy: 'Chef Sanjay Rawat',
+    notes: 'Preparation Error: Over-salted marinade batch discarded',
+  },
+  {
+    id: 'mov-005',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-28T10:45:00.000Z',
+    rawMaterialId: 'rm-12',
+    rawMaterialName: 'Ripe Hybrid Tomatoes',
+    sku: 'RM-VEG-02',
+    category: 'Produce & Veg',
+    unit: 'KG',
+    type: 'WASTAGE',
+    changeQty: -4.0,
+    balanceAfter: 45.0,
+    costPerUnit: 40.0,
+    totalCostImpact: -160.0,
+    reference: 'Wastage Log #WST-202610-002',
+    recordedBy: 'Chef Sanjay Rawat',
+    notes: 'Spoilage: Bruised bottom crates from market delivery',
+  },
+  {
+    id: 'mov-006',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-28T10:45:00.000Z',
+    rawMaterialId: 'rm-16',
+    rawMaterialName: 'Fresh Mint & Coriander Leaves',
+    sku: 'RM-VEG-06',
+    category: 'Produce & Veg',
+    unit: 'KG',
+    type: 'WASTAGE',
+    changeQty: -2.0,
+    balanceAfter: 4.5,
+    costPerUnit: 80.0,
+    totalCostImpact: -160.0,
+    reference: 'Wastage Log #WST-202610-002',
+    recordedBy: 'Chef Sanjay Rawat',
+    notes: 'Spoilage: Wilted from high humidity',
+  },
+  {
+    id: 'mov-007',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-29T13:40:00.000Z',
+    rawMaterialId: 'rm-07',
+    rawMaterialName: 'Boneless Chicken Breast Cubes',
+    sku: 'RM-CHK-01',
+    category: 'Poultry & Meat',
+    unit: 'KG',
+    type: 'RECIPE_CONSUMPTION',
+    changeQty: -0.75,
+    balanceAfter: 22.0,
+    costPerUnit: 280.0,
+    totalCostImpact: -210.0,
+    reference: 'POS Order #ORD-20261029-105 (3x Butter Chicken)',
+    recordedBy: 'Auto Recipe BOM Engine',
+    notes: '250g chicken per portion deducted on order punch',
+  },
+  {
+    id: 'mov-008',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-29T13:40:00.000Z',
+    rawMaterialId: 'rm-02',
+    rawMaterialName: 'Amul Butter (Salted)',
+    sku: 'RM-BUT-01',
+    category: 'Dairy',
+    unit: 'KG',
+    type: 'RECIPE_CONSUMPTION',
+    changeQty: -0.12,
+    balanceAfter: 12.0,
+    costPerUnit: 520.0,
+    totalCostImpact: -62.4,
+    reference: 'POS Order #ORD-20261029-105 (3x Butter Chicken)',
+    recordedBy: 'Auto Recipe BOM Engine',
+    notes: '40g butter per portion deducted',
+  },
+  {
+    id: 'mov-009',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-29T14:10:00.000Z',
+    rawMaterialId: 'rm-01',
+    rawMaterialName: 'Fresh Malai Paneer',
+    sku: 'RM-PAN-01',
+    category: 'Dairy',
+    unit: 'KG',
+    type: 'RECIPE_CONSUMPTION',
+    changeQty: -0.44,
+    balanceAfter: 18.5,
+    costPerUnit: 340.0,
+    totalCostImpact: -149.6,
+    reference: 'POS Order #ORD-20261029-108 (2x Paneer Tikka)',
+    recordedBy: 'Auto Recipe BOM Engine',
+    notes: '220g malai paneer per portion deducted',
+  },
+  {
+    id: 'mov-010',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-30T19:25:00.000Z',
+    rawMaterialId: 'rm-17',
+    rawMaterialName: 'Royal Basmati Rice (Daawat Biryani)',
+    sku: 'RM-GRN-01',
+    category: 'Grains & Staples',
+    unit: 'KG',
+    type: 'RECIPE_CONSUMPTION',
+    changeQty: -0.90,
+    balanceAfter: 110.0,
+    costPerUnit: 125.0,
+    totalCostImpact: -112.5,
+    reference: 'POS Order #ORD-20261030-112 (5x Chicken Dum Biryani)',
+    recordedBy: 'Auto Recipe BOM Engine',
+    notes: '180g aged basmati rice per portion deducted',
+  },
+  {
+    id: 'mov-011',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-31T09:00:00.000Z',
+    rawMaterialId: 'rm-11',
+    rawMaterialName: 'Nashik Red Onions',
+    sku: 'RM-VEG-01',
+    category: 'Produce & Veg',
+    unit: 'KG',
+    type: 'AUDIT_RECONCILIATION',
+    changeQty: 5.0,
+    balanceAfter: 85.0,
+    costPerUnit: 35.0,
+    totalCostImpact: 175.0,
+    reference: 'Physical Stock Audit',
+    recordedBy: 'Store Manager',
+    notes: 'Physical count reconciled: found 1 extra 5kg bag in dry store',
+  },
+  {
+    id: 'mov-012',
+    brandId: 'brand-restodesk-001',
+    outletId: 'outlet-01',
+    date: '2026-10-31T11:30:00.000Z',
+    rawMaterialId: 'rm-03',
+    rawMaterialName: 'Amul Fresh Cooking Cream',
+    sku: 'RM-CRM-01',
+    category: 'Dairy',
+    unit: 'LITER',
+    type: 'MANUAL_ADJUSTMENT',
+    changeQty: 2.0,
+    balanceAfter: 6.5,
+    costPerUnit: 220.0,
+    totalCostImpact: 440.0,
+    reference: 'Manual Quick Adjust',
+    recordedBy: 'Kitchen Supervisor',
+    notes: 'Stock replenishment from emergency local store purchase',
+  },
+];
+
+export function recordStockMovement(
+  movement: Omit<MockStockMovement, 'id' | 'brandId' | 'outletId'> & {
+    id?: string;
+    brandId?: string;
+    outletId?: string;
+  }
+): MockStockMovement {
+  const newMovement: MockStockMovement = {
+    id: movement.id || `mov-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    brandId: movement.brandId || 'brand-restodesk-001',
+    outletId: movement.outletId || 'outlet-01',
+    ...movement,
+  };
+  MOCK_STOCK_MOVEMENTS.unshift(newMovement);
+  return newMovement;
+}
+
+// ==========================================
 // PHASE 6: SHIFTS, CASH DRAWER, Z-REPORTS & ANALYTICS
 // ==========================================
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { MOCK_RAW_MATERIALS } from '@/lib/mock-data';
+import { MOCK_RAW_MATERIALS, recordStockMovement } from '@/lib/mock-data';
 
 const AuditLineItemSchema = z.object({
   rawMaterialId: z.string(),
@@ -47,6 +47,26 @@ export async function POST(req: NextRequest) {
 
       // Update the system stock to match the physical shelf count
       rm.currentStock = physicalStock;
+
+      if (variance !== 0) {
+        recordStockMovement({
+          outletId: validated.outletId,
+          date: new Date().toISOString(),
+          rawMaterialId: rm.id,
+          rawMaterialName: rm.name,
+          sku: rm.sku,
+          category: rm.category,
+          unit: rm.unit,
+          type: 'AUDIT_RECONCILIATION',
+          changeQty: variance,
+          balanceAfter: physicalStock,
+          costPerUnit: rm.costPerUnit,
+          totalCostImpact: varianceCost,
+          reference: 'Physical Stock Audit',
+          recordedBy: validated.auditedBy,
+          notes: `System was ${systemStock} ${rm.unit}, counted ${physicalStock} ${rm.unit} (${variance > 0 ? 'Surplus' : 'Deficit'})`,
+        });
+      }
 
       try {
         await prisma.rawMaterial.update({
