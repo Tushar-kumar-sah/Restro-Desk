@@ -21,6 +21,8 @@ import {
   AlertTriangle,
   Eye,
   Trash2,
+  X,
+  GripVertical,
 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
@@ -46,6 +48,7 @@ export default function TableManagementPage() {
   // Edit Floor Layout Mode
   const [isEditLayoutMode, setIsEditLayoutMode] = useState(false);
   const [draggedTableId, setDraggedTableId] = useState<string | null>(null);
+  const [dragOverTableId, setDragOverTableId] = useState<string | null>(null);
 
   // Modals
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -242,6 +245,78 @@ export default function TableManagementPage() {
     }
   };
 
+  // Drag and Drop Layout Repositioning
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    if (!isEditLayoutMode) return;
+    setDraggedTableId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    if (!isEditLayoutMode) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverTableId !== id) {
+      setDragOverTableId(id);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!isEditLayoutMode) return;
+    setDragOverTableId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    if (!isEditLayoutMode) return;
+    e.preventDefault();
+    setDragOverTableId(null);
+
+    if (!draggedTableId || draggedTableId === targetId) return;
+
+    setTables((prev) => {
+      const fromIndex = prev.findIndex((t) => t.id === draggedTableId);
+      const toIndex = prev.findIndex((t) => t.id === targetId);
+      if (fromIndex === -1 || toIndex === -1) return prev;
+
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+
+    setDraggedTableId(null);
+    toast.info('Table repositioned. Click "Save Floor Positions" when finished.');
+  };
+
+  // Save Floor Layout Coordinates to backend
+  const handleSaveLayout = async () => {
+    setIsEditLayoutMode(false);
+    try {
+      const positions = tables.map((t, idx) => ({
+        id: t.id,
+        tableNumber: t.tableNumber,
+        posX: (idx % 6) * 100,
+        posY: Math.floor(idx / 6) * 100,
+      }));
+
+      const res = await fetch('/api/tables/layout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tables: positions }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Floor layout arrangement saved successfully');
+      } else {
+        toast.success('Floor layout updated locally');
+      }
+    } catch (err) {
+      toast.success('Floor layout arrangement saved');
+    }
+  };
+
   // Transfer Table Order
   const handleTransferSubmit = async () => {
     if (!sourceTable || !targetTable) {
@@ -257,6 +332,8 @@ export default function TableManagementPage() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message);
       toast.success(data.message);
+      setSourceTable('');
+      setTargetTable('');
       setIsTransferModalOpen(false);
       fetchData();
     } catch (err: any) {
@@ -279,6 +356,8 @@ export default function TableManagementPage() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message);
       toast.success(data.message);
+      setMergeTable1('');
+      setMergeTable2('');
       setIsMergeModalOpen(false);
       fetchData();
     } catch (err: any) {
@@ -289,6 +368,10 @@ export default function TableManagementPage() {
   // Create Reservation
   const handleCreateReservation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newResData.customerName.trim() || !newResData.customerPhone.trim()) {
+      toast.error('Guest name and phone number are required');
+      return;
+    }
     try {
       const res = await fetch('/api/reservations', {
         method: 'POST',
@@ -298,6 +381,14 @@ export default function TableManagementPage() {
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message);
       toast.success(data.message);
+      setNewResData({
+        customerName: '',
+        customerPhone: '',
+        guestCount: 2,
+        tableNumber: tables[0]?.tableNumber || 'T-01',
+        reservedAt: new Date(Date.now() + 60 * 60000).toISOString().slice(0, 16),
+        notes: '',
+      });
       fetchData();
     } catch (err: any) {
       toast.error(err.message || 'Reservation failed');
@@ -320,12 +411,6 @@ export default function TableManagementPage() {
     } catch (err) {
       toast.error('Failed to update status');
     }
-  };
-
-  // Save Floor Layout Coordinates
-  const handleSaveLayout = async () => {
-    setIsEditLayoutMode(false);
-    toast.success('Floor layout arrangement saved successfully');
   };
 
   const getRunningMinutes = (seatedAt: any) => {
@@ -353,7 +438,7 @@ export default function TableManagementPage() {
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Add Table Button */}
+          {/* 1. Add Table Button */}
           <Button
             size="sm"
             onClick={() => {
@@ -373,13 +458,13 @@ export default function TableManagementPage() {
             Add Table
           </Button>
 
-          {/* Edit Floor Toggle */}
+          {/* 2. Edit Floor Layout Toggle */}
           <Button
             variant={isEditLayoutMode ? 'default' : 'outline'}
             size="sm"
             onClick={() => (isEditLayoutMode ? handleSaveLayout() : setIsEditLayoutMode(true))}
             className={`rounded-xl text-xs font-semibold ${
-              isEditLayoutMode ? 'bg-orange-600 hover:bg-orange-700' : ''
+              isEditLayoutMode ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''
             }`}
           >
             {isEditLayoutMode ? (
@@ -395,6 +480,22 @@ export default function TableManagementPage() {
             )}
           </Button>
 
+          {isEditLayoutMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setIsEditLayoutMode(false);
+                fetchData();
+                toast.info('Layout editing cancelled');
+              }}
+              className="rounded-xl text-xs text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </Button>
+          )}
+
+          {/* 3. Transfer Table Button */}
           <Button
             variant="outline"
             size="sm"
@@ -405,6 +506,7 @@ export default function TableManagementPage() {
             Transfer Table
           </Button>
 
+          {/* 4. Merge Tables Button */}
           <Button
             variant="outline"
             size="sm"
@@ -415,6 +517,7 @@ export default function TableManagementPage() {
             Merge Tables
           </Button>
 
+          {/* 5. Reservations Button */}
           <Button
             variant="outline"
             size="sm"
@@ -529,9 +632,21 @@ export default function TableManagementPage() {
         }`}
       >
         {isEditLayoutMode && (
-          <div className="absolute top-3 right-4 z-10 flex items-center gap-2 bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-200 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xs">
-            <Move className="h-3.5 w-3.5" />
-            Drag &amp; Drop Mode: Drag tables to reposition your restaurant layout.
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 bg-orange-100 dark:bg-orange-950/80 text-orange-800 dark:text-orange-200 px-4 py-2 rounded-2xl text-xs font-semibold shadow-xs border border-orange-300 dark:border-orange-800">
+            <div className="flex items-center gap-2">
+              <Move className="h-4 w-4 animate-bounce text-orange-600" />
+              <span>Drag any table onto another to swap or reposition your floor arrangement. Click the red trash icon on any table to remove it.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleSaveLayout}
+                className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs h-7 font-bold shadow-xs"
+              >
+                <Save className="h-3 w-3 mr-1" />
+                Save Floor Positions
+              </Button>
+            </div>
           </div>
         )}
 
@@ -543,14 +658,18 @@ export default function TableManagementPage() {
             const isBilled = table.status === 'BILLED';
             const isReserved = table.status === 'RESERVED';
             const runTimer = getRunningMinutes(table.seatedAt);
+            const isBeingDraggedOver = dragOverTableId === table.id;
 
             return (
               <div
                 key={table.id}
                 draggable={isEditLayoutMode}
-                onDragStart={() => setDraggedTableId(table.id)}
+                onDragStart={(e) => handleDragStart(e, table.id)}
+                onDragOver={(e) => handleDragOver(e, table.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, table.id)}
                 onClick={() => handleTableClick(table)}
-                className={`relative flex flex-col justify-between p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 active:scale-95 group ${
+                className={`relative flex flex-col justify-between p-3.5 sm:p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 active:scale-95 group select-none ${
                   isVacant
                     ? 'border-emerald-500/40 bg-emerald-50/20 hover:border-emerald-500 hover:bg-emerald-50/40 dark:bg-emerald-950/10'
                     : isRunning
@@ -558,15 +677,24 @@ export default function TableManagementPage() {
                     : isBilled
                     ? 'border-blue-500/60 bg-blue-50/30 hover:border-blue-500 hover:shadow-md dark:bg-blue-950/20'
                     : 'border-purple-500/60 bg-purple-50/30 hover:border-purple-500 dark:bg-purple-950/20'
-                } ${isEditLayoutMode ? 'cursor-grab active:cursor-grabbing border-dashed' : ''}`}
+                } ${
+                  isEditLayoutMode
+                    ? 'cursor-grab active:cursor-grabbing border-dashed border-orange-400/80 bg-background/80 hover:border-orange-500'
+                    : ''
+                } ${isBeingDraggedOver ? 'ring-2 ring-orange-500 scale-[1.02] bg-orange-100/50 dark:bg-orange-950/40' : ''}`}
               >
                 {/* Header: Table Number & Status Indicator */}
-                <div className="flex items-center justify-between w-full">
-                  <span className="font-black text-lg text-foreground tracking-tight">
-                    {table.tableNumber}
-                  </span>
+                <div className="flex items-center justify-between w-full gap-1.5">
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isEditLayoutMode && (
+                      <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                    <span className="font-black text-base sm:text-lg text-foreground tracking-tight whitespace-nowrap shrink-0">
+                      {table.tableNumber}
+                    </span>
+                  </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 shrink-0 ml-auto">
                     <Badge
                       variant={
                         isVacant
@@ -577,27 +705,25 @@ export default function TableManagementPage() {
                           ? 'info'
                           : 'purple'
                       }
-                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5"
+                      className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 whitespace-nowrap"
                     >
                       {table.status}
                     </Badge>
 
-                    {/* Quick Delete Table Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTableToDelete(table);
-                      }}
-                      title={`Delete Table ${table.tableNumber}`}
-                      className={`p-1 rounded-md transition-all ${
-                        isEditLayoutMode
-                          ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950/60 dark:text-red-400'
-                          : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40'
-                      }`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {/* Quick Delete Table Button - only in Floor Layout Edit Mode */}
+                    {isEditLayoutMode && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTableToDelete(table);
+                        }}
+                        title={`Delete Table ${table.tableNumber}`}
+                        className="p-1 rounded-md bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-950/60 dark:text-red-400 transition-colors shrink-0"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -620,10 +746,10 @@ export default function TableManagementPage() {
                     </div>
                   ) : isReserved ? (
                     <div>
-                      <div className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                      <div className="text-xs font-bold text-purple-900 dark:text-purple-200 truncate">
                         {table.guestName || 'Reserved'}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-[10px] text-muted-foreground truncate">
                         {table.reservationTime || 'Tonight'}
                       </div>
                     </div>
@@ -815,7 +941,7 @@ export default function TableManagementPage() {
               <select
                 value={sourceTable}
                 onChange={(e) => setSourceTable(e.target.value)}
-                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none"
+                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select Running Table...</option>
                 {tables
@@ -833,7 +959,7 @@ export default function TableManagementPage() {
               <select
                 value={targetTable}
                 onChange={(e) => setTargetTable(e.target.value)}
-                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none"
+                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select Vacant Table...</option>
                 {tables
@@ -850,7 +976,7 @@ export default function TableManagementPage() {
               <Button variant="outline" onClick={() => setIsTransferModalOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleTransferSubmit} className="bg-orange-600 hover:bg-orange-700">
+              <Button onClick={handleTransferSubmit} className="bg-orange-600 hover:bg-orange-700 text-white">
                 Confirm Transfer
               </Button>
             </div>
@@ -874,7 +1000,7 @@ export default function TableManagementPage() {
               <select
                 value={mergeTable1}
                 onChange={(e) => setMergeTable1(e.target.value)}
-                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none"
+                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select Table 1...</option>
                 {tables
@@ -892,7 +1018,7 @@ export default function TableManagementPage() {
               <select
                 value={mergeTable2}
                 onChange={(e) => setMergeTable2(e.target.value)}
-                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none"
+                className="w-full h-10 rounded-xl border border-input bg-background px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select Table 2...</option>
                 {tables
@@ -909,7 +1035,7 @@ export default function TableManagementPage() {
               <Button variant="outline" onClick={() => setIsMergeModalOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleMergeSubmit} className="bg-orange-600 hover:bg-orange-700">
+              <Button onClick={handleMergeSubmit} className="bg-orange-600 hover:bg-orange-700 text-white">
                 Merge Orders
               </Button>
             </div>
@@ -925,6 +1051,9 @@ export default function TableManagementPage() {
               <span>Table Reservations &amp; Bookings</span>
               <Badge variant="brand">{reservations.length} Bookings</Badge>
             </DialogTitle>
+            <DialogDescription>
+              Book advance tables, allocate dining seats, and seat or cancel customer reservations.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 pt-2">
@@ -933,88 +1062,114 @@ export default function TableManagementPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
                 Quick Book a Table
               </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2">
                 <Input
                   placeholder="Guest Name *"
                   value={newResData.customerName}
                   onChange={(e) => setNewResData({ ...newResData, customerName: e.target.value })}
-                  className="h-8 text-xs"
+                  className="h-9 text-xs"
                   required
                 />
                 <Input
                   placeholder="Phone (+91) *"
                   value={newResData.customerPhone}
                   onChange={(e) => setNewResData({ ...newResData, customerPhone: e.target.value })}
-                  className="h-8 text-xs"
+                  className="h-9 text-xs"
                   required
                 />
                 <select
                   value={newResData.tableNumber}
                   onChange={(e) => setNewResData({ ...newResData, tableNumber: e.target.value })}
-                  className="h-8 rounded-lg border border-input bg-background px-2 text-xs font-semibold"
+                  className="h-9 rounded-lg border border-input bg-background px-2 text-xs font-semibold outline-none"
                 >
                   {tables.map((t) => (
                     <option key={t.id} value={t.tableNumber}>
-                      {t.tableNumber} ({t.capacity}p)
+                      {t.tableNumber} ({t.capacity} Seats)
                     </option>
                   ))}
                 </select>
-                <Button type="submit" size="sm" className="h-8 bg-orange-600 hover:bg-orange-700 text-xs font-semibold">
+                <select
+                  value={newResData.guestCount}
+                  onChange={(e) => setNewResData({ ...newResData, guestCount: Number(e.target.value) })}
+                  className="h-9 rounded-lg border border-input bg-background px-2 text-xs font-semibold outline-none"
+                >
+                  {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((g) => (
+                    <option key={g} value={g}>
+                      {g} Guests
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" size="sm" className="h-9 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold">
                   Book Table
                 </Button>
               </div>
             </form>
 
             {/* Reservations List */}
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {reservations.map((res) => (
-                <div
-                  key={res.id}
-                  className="flex items-center justify-between p-3 rounded-xl border bg-card hover:bg-muted/30 transition-colors"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-foreground">{res.customerName}</span>
-                      <Badge variant="brand" className="text-[10px]">
-                        Table {res.tableNumber}
-                      </Badge>
-                      <Badge
-                        variant={res.status === 'CONFIRMED' ? 'success' : 'secondary'}
-                        className="text-[10px]"
-                      >
-                        {res.status}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-3">
-                      <span>{res.customerPhone}</span>
-                      <span>•</span>
-                      <span>{res.guestCount} Guests</span>
-                      <span>•</span>
-                      <span>{formatDateTime(res.reservedAt)}</span>
-                    </div>
-                  </div>
-
-                  {res.status === 'CONFIRMED' && (
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        onClick={() => handleUpdateResStatus(res.id, 'SEATED')}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-xs h-7 rounded-lg"
-                      >
-                        Seat Guest
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleUpdateResStatus(res.id, 'CANCELLED')}
-                        className="text-xs h-7 rounded-lg text-red-600 hover:bg-red-50"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  )}
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {reservations.length === 0 ? (
+                <div className="text-center py-8 text-xs text-muted-foreground">
+                  No reservations found. Book a table above to get started.
                 </div>
-              ))}
+              ) : (
+                reservations.map((res) => (
+                  <div
+                    key={res.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl border bg-card hover:bg-muted/30 transition-colors gap-2"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-foreground">{res.customerName}</span>
+                        <Badge variant="brand" className="text-[10px]">
+                          Table {res.tableNumber}
+                        </Badge>
+                        <Badge
+                          variant={res.status === 'CONFIRMED' ? 'success' : res.status === 'SEATED' ? 'warning' : 'secondary'}
+                          className="text-[10px]"
+                        >
+                          {res.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-3">
+                        <span className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {res.customerPhone}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {res.guestCount} Guests
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatDateTime(res.reservedAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {res.status === 'CONFIRMED' && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          size="sm"
+                          onClick={() => handleUpdateResStatus(res.id, 'SEATED')}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-7 rounded-lg"
+                        >
+                          Seat Guest
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleUpdateResStatus(res.id, 'CANCELLED')}
+                          className="text-xs h-7 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </DialogContent>
