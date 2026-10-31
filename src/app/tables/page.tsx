@@ -425,19 +425,19 @@ export default function TableManagementPage() {
   return (
     <AppShell>
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <LayoutGrid className="h-6 w-6 text-orange-600" />
-            Table &amp; Floor Management
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 pb-1">
+        <div className="space-y-0.5">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <LayoutGrid className="h-6 w-6 text-orange-600 shrink-0" />
+            <span>Table &amp; Floor Management</span>
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground">
             Visual table arrangement, real-time dining timers, table transfers, mergers, and guest reservations.
           </p>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Action Controls - Always unified and aligned in a clean single row */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 shrink-0">
           {/* 1. Add Table Button */}
           <Button
             size="sm"
@@ -452,9 +452,9 @@ export default function TableManagementPage() {
               });
               setIsNewTableOpen(true);
             }}
-            className="rounded-xl text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white shadow-xs"
+            className="rounded-xl text-xs font-semibold bg-orange-600 hover:bg-orange-700 text-white shadow-xs h-9 px-3.5 shrink-0 whitespace-nowrap"
           >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            <Plus className="h-3.5 w-3.5 mr-1.5 shrink-0" />
             Add Table
           </Button>
 
@@ -463,18 +463,18 @@ export default function TableManagementPage() {
             variant={isEditLayoutMode ? 'default' : 'outline'}
             size="sm"
             onClick={() => (isEditLayoutMode ? handleSaveLayout() : setIsEditLayoutMode(true))}
-            className={`rounded-xl text-xs font-semibold ${
+            className={`rounded-xl text-xs font-semibold h-9 px-3.5 shrink-0 whitespace-nowrap ${
               isEditLayoutMode ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''
             }`}
           >
             {isEditLayoutMode ? (
               <>
-                <Save className="h-3.5 w-3.5 mr-1.5" />
+                <Save className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                 Save Floor Positions
               </>
             ) : (
               <>
-                <Move className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <Move className="h-3.5 w-3.5 mr-1.5 text-muted-foreground shrink-0" />
                 Edit Floor Layout
               </>
             )}
@@ -489,7 +489,7 @@ export default function TableManagementPage() {
                 fetchData();
                 toast.info('Layout editing cancelled');
               }}
-              className="rounded-xl text-xs text-muted-foreground hover:text-foreground"
+              className="rounded-xl text-xs text-muted-foreground hover:text-foreground h-9 px-3 shrink-0 whitespace-nowrap"
             >
               Cancel
             </Button>
@@ -500,9 +500,9 @@ export default function TableManagementPage() {
             variant="outline"
             size="sm"
             onClick={() => setIsTransferModalOpen(true)}
-            className="rounded-xl text-xs"
+            className="rounded-xl text-xs font-semibold h-9 px-3.5 shrink-0 whitespace-nowrap"
           >
-            <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
+            <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5 text-blue-600 shrink-0" />
             Transfer Table
           </Button>
 
@@ -511,9 +511,9 @@ export default function TableManagementPage() {
             variant="outline"
             size="sm"
             onClick={() => setIsMergeModalOpen(true)}
-            className="rounded-xl text-xs"
+            className="rounded-xl text-xs font-semibold h-9 px-3.5 shrink-0 whitespace-nowrap"
           >
-            <Merge className="h-3.5 w-3.5 mr-1.5 text-purple-600" />
+            <Merge className="h-3.5 w-3.5 mr-1.5 text-purple-600 shrink-0" />
             Merge Tables
           </Button>
 
@@ -522,17 +522,17 @@ export default function TableManagementPage() {
             variant="outline"
             size="sm"
             onClick={() => setIsReservationsOpen(true)}
-            className="rounded-xl text-xs"
+            className="rounded-xl text-xs font-semibold h-9 px-3.5 shrink-0 whitespace-nowrap"
           >
-            <Calendar className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
+            <Calendar className="h-3.5 w-3.5 mr-1.5 text-emerald-600 shrink-0" />
             Reservations ({reservations.filter((r) => r.status === 'CONFIRMED').length})
           </Button>
         </div>
       </div>
 
       {/* Sections & Status Bar */}
-      <Card className="rounded-2xl shadow-xs">
-        <CardContent className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <Card className="rounded-2xl shadow-xs border">
+        <CardContent className="p-3.5 flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-3">
           {/* Section Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <button
@@ -550,7 +550,7 @@ export default function TableManagementPage() {
               <button
                 key={sec.id}
                 onClick={() => setSelectedSection(sec.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all ${
                   selectedSection === sec.id
                     ? 'bg-orange-600 text-white shadow-xs'
                     : 'bg-muted/70 text-muted-foreground hover:bg-muted'
@@ -562,10 +562,10 @@ export default function TableManagementPage() {
           </div>
 
           {/* Status Color Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0 border-t 2xl:border-t-0 pt-2 2xl:pt-0">
             <button
               onClick={() => setStatusFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 ${
                 statusFilter === 'ALL' ? 'bg-muted font-bold text-foreground' : 'text-muted-foreground'
               }`}
             >
@@ -574,49 +574,49 @@ export default function TableManagementPage() {
 
             <button
               onClick={() => setStatusFilter('VACANT')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 ${
                 statusFilter === 'VACANT'
                   ? 'bg-emerald-100 text-emerald-900 font-bold dark:bg-emerald-950 dark:text-emerald-200'
                   : 'text-muted-foreground hover:text-emerald-700'
               }`}
             >
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
               Vacant ({counts.vacant})
             </button>
 
             <button
               onClick={() => setStatusFilter('RUNNING')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 ${
                 statusFilter === 'RUNNING'
                   ? 'bg-amber-100 text-amber-900 font-bold dark:bg-amber-950 dark:text-amber-200'
                   : 'text-muted-foreground hover:text-amber-700'
               }`}
             >
-              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
               Running ({counts.running})
             </button>
 
             <button
               onClick={() => setStatusFilter('BILLED')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 ${
                 statusFilter === 'BILLED'
                   ? 'bg-blue-100 text-blue-900 font-bold dark:bg-blue-950 dark:text-blue-200'
                   : 'text-muted-foreground hover:text-blue-700'
               }`}
             >
-              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
               Billed ({counts.billed})
             </button>
 
             <button
               onClick={() => setStatusFilter('RESERVED')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 ${
                 statusFilter === 'RESERVED'
                   ? 'bg-purple-100 text-purple-900 font-bold dark:bg-purple-950 dark:text-purple-200'
                   : 'text-muted-foreground hover:text-purple-700'
               }`}
             >
-              <span className="h-2 w-2 rounded-full bg-purple-500" />
+              <span className="h-2 w-2 rounded-full bg-purple-500 shrink-0" />
               Reserved ({counts.reserved})
             </button>
           </div>
