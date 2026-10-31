@@ -50,16 +50,30 @@ import { useAppStore } from '@/store/useAppStore';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { selectedOutlet, user } = useAppStore();
+  const { selectedOutlet, user, dateRange, setDateRange } = useAppStore();
 
-  const [period, setPeriod] = useState('today');
+  const [period, setPeriod] = useState(() => {
+    if (dateRange?.label === 'Yesterday') return 'yesterday';
+    if (dateRange?.label === 'Last 7 Days') return '7d';
+    if (dateRange?.label === 'Last 30 Days' || dateRange?.label === 'This Month') return '30d';
+    return 'today';
+  });
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sync when topbar date range changes
+  useEffect(() => {
+    if (dateRange?.label === 'Yesterday') setPeriod('yesterday');
+    else if (dateRange?.label === 'Last 7 Days') setPeriod('7d');
+    else if (dateRange?.label === 'Last 30 Days' || dateRange?.label === 'This Month') setPeriod('30d');
+    else if (dateRange?.label === 'Today') setPeriod('today');
+  }, [dateRange?.label]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/reports/dashboard?period=${period}`);
+      const outletParam = selectedOutlet?.id ? `&outletId=${selectedOutlet.id}` : '';
+      const res = await fetch(`/api/reports/dashboard?period=${period}${outletParam}`);
       const json = await res.json();
       if (json.success) {
         setData(json);
@@ -73,7 +87,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [period]);
+  }, [period, selectedOutlet?.id]);
 
   const kpi = data?.kpi || {
     todaySales: 154200.0,
@@ -117,7 +131,15 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 p-1 rounded-xl text-xs font-semibold">
               <button
-                onClick={() => setPeriod('today')}
+                type="button"
+                onClick={() => {
+                  setPeriod('today');
+                  setDateRange({
+                    label: 'Today',
+                    startDate: new Date().toISOString().split('T')[0],
+                    endDate: new Date().toISOString().split('T')[0],
+                  });
+                }}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
                   period === 'today'
                     ? 'bg-white dark:bg-neutral-900 shadow-xs text-neutral-900 dark:text-white'
@@ -127,7 +149,12 @@ export default function DashboardPage() {
                 Today
               </button>
               <button
-                onClick={() => setPeriod('yesterday')}
+                type="button"
+                onClick={() => {
+                  setPeriod('yesterday');
+                  const y = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                  setDateRange({ label: 'Yesterday', startDate: y, endDate: y });
+                }}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
                   period === 'yesterday'
                     ? 'bg-white dark:bg-neutral-900 shadow-xs text-neutral-900 dark:text-white'
@@ -137,7 +164,13 @@ export default function DashboardPage() {
                 Yesterday
               </button>
               <button
-                onClick={() => setPeriod('7d')}
+                type="button"
+                onClick={() => {
+                  setPeriod('7d');
+                  const start7 = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
+                  const end7 = new Date().toISOString().split('T')[0];
+                  setDateRange({ label: 'Last 7 Days', startDate: start7, endDate: end7 });
+                }}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
                   period === '7d'
                     ? 'bg-white dark:bg-neutral-900 shadow-xs text-neutral-900 dark:text-white'
@@ -147,7 +180,13 @@ export default function DashboardPage() {
                 Last 7 Days
               </button>
               <button
-                onClick={() => setPeriod('30d')}
+                type="button"
+                onClick={() => {
+                  setPeriod('30d');
+                  const start30 = new Date(Date.now() - 29 * 86400000).toISOString().split('T')[0];
+                  const end30 = new Date().toISOString().split('T')[0];
+                  setDateRange({ label: 'Last 30 Days', startDate: start30, endDate: end30 });
+                }}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
                   period === '30d'
                     ? 'bg-white dark:bg-neutral-900 shadow-xs text-neutral-900 dark:text-white'
@@ -264,14 +303,15 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-bold text-neutral-900 dark:text-white">
-                    Hourly Sales Trend & Rush Peaks
+                    {data?.chartTitle || 'Hourly Sales Trend & Rush Peaks'}
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Revenue performance curve highlighting lunch (1-3 PM) and dinner (8-10 PM) rush
+                    {data?.chartDescription ||
+                      'Revenue performance curve highlighting lunch (1-3 PM) and dinner (8-10 PM) rush'}
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  Peak: 9:00 PM (₹38.4k)
+                <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1">
+                  {data?.peakBadge || 'Peak: 9:00 PM (₹38.4k)'}
                 </Badge>
               </div>
             </CardHeader>
@@ -291,10 +331,13 @@ export default function DashboardPage() {
                       tickLine={false}
                       axisLine={false}
                       tick={{ fontSize: 11 }}
-                      tickFormatter={(v) => `₹${v / 1000}k`}
+                      tickFormatter={(v) =>
+                        v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${Math.round(v / 1000)}k`
+                      }
                     />
                     <Tooltip
-                      formatter={(val: any) => [`₹${val.toLocaleString('en-IN')}`, 'Sales']}
+                      formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Sales']}
+                      labelFormatter={(label: any) => `${data?.timeAxisLabel || 'Time'}: ${label}`}
                       contentStyle={{
                         borderRadius: '12px',
                         fontSize: '12px',
@@ -343,7 +386,7 @@ export default function DashboardPage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(val: any) => [`₹${val.toLocaleString('en-IN')}`, 'Amount']}
+                      formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Amount']}
                     />
                   </PieChart>
                 </ResponsiveContainer>
