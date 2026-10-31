@@ -152,3 +152,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'GRN ID is required' }, { status: 400 });
+    }
+
+    const index = MOCK_GRNS.findIndex((g) => g.id === id);
+    if (index === -1) {
+      return NextResponse.json({ success: false, message: 'GRN record not found' }, { status: 404 });
+    }
+
+    const grn = MOCK_GRNS[index];
+
+    // Revert stock increments
+    for (const item of grn.items) {
+      const rm = MOCK_RAW_MATERIALS.find((m) => m.id === item.rawMaterialId || m.name === item.rawMaterialName);
+      if (rm) {
+        rm.currentStock = Math.max(0, Math.round((rm.currentStock - item.acceptedQty) * 100) / 100);
+      }
+    }
+
+    // Revert supplier liability
+    const supplier = MOCK_SUPPLIERS.find((s) => s.id === grn.supplierId);
+    if (supplier) {
+      supplier.outstandingBalance = Math.max(0, Math.round((supplier.outstandingBalance - grn.totalAmount) * 100) / 100);
+      supplier.totalPurchasesYtd = Math.max(0, supplier.totalPurchasesYtd - grn.totalAmount);
+    }
+
+    // Revert PO status if attached
+    if (grn.purchaseOrderId) {
+      const po = MOCK_PURCHASE_ORDERS.find((p) => p.id === grn.purchaseOrderId);
+      if (po) po.status = 'ISSUED';
+    }
+
+    MOCK_GRNS.splice(index, 1);
+
+    return NextResponse.json({
+      success: true,
+      message: `GRN ${grn.grnNumber} deleted and stock adjusted.`,
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+  }
+}
