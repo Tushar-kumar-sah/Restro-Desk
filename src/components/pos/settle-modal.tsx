@@ -11,6 +11,7 @@ import {
   Receipt,
   Calculator,
   X,
+  User,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,8 @@ export function SettleModal({ isOpen, onClose, orderTotal, onSettled, customer }
   const [method, setMethod] = useState<'CASH' | 'CARD' | 'UPI_QR' | 'WALLET' | 'DUE_CREDIT' | 'SPLIT'>('CASH');
   const [tenderedCash, setTenderedCash] = useState<number>(orderTotal);
   const [referenceNumber, setReferenceNumber] = useState('');
+  const [custPhone, setCustPhone] = useState(customer?.phone || '');
+  const [custName, setCustName] = useState(customer?.name || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Quick tender suggestions
@@ -55,6 +58,8 @@ export function SettleModal({ isOpen, onClose, orderTotal, onSettled, customer }
         tenderedCash: method === 'CASH' ? tenderedCash : orderTotal,
         changeDue: method === 'CASH' ? changeDue : 0,
         referenceNumber: referenceNumber || (method === 'UPI_QR' ? `UPI-${Date.now().toString().slice(-6)}` : null),
+        customerPhone: custPhone || customer?.phone || null,
+        customerName: custName || customer?.name || null,
       });
       onClose();
     }, 400);
@@ -84,6 +89,46 @@ export function SettleModal({ isOpen, onClose, orderTotal, onSettled, customer }
         </div>
 
         <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
+          {/* Customer CRM Bar */}
+          <div className="rounded-xl border p-2.5 bg-muted/20">
+            {customer ? (
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 font-medium text-foreground">
+                  <User className="h-3.5 w-3.5 text-orange-600" />
+                  <span>{customer.name}</span>
+                  <span className="text-muted-foreground text-[11px]">({customer.phone})</span>
+                </div>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300">
+                  {customer.tier || 'Silver Member'}
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                    <User className="h-3 w-3 text-orange-600" />
+                    Customer Mobile (Auto-registers new guest)
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="10-digit mobile"
+                    maxLength={10}
+                    value={custPhone}
+                    onChange={(e) => setCustPhone(e.target.value)}
+                    className="h-8 text-xs rounded-lg"
+                  />
+                  <Input
+                    placeholder="Guest name (optional)"
+                    value={custName}
+                    onChange={(e) => setCustName(e.target.value)}
+                    className="h-8 text-xs rounded-lg"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Payment Method Tabs */}
           <Tabs value={method} onValueChange={(val: any) => setMethod(val)}>
             <TabsList className="grid grid-cols-4 h-11 w-full p-1 bg-muted rounded-xl">

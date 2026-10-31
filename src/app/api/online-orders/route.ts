@@ -6,6 +6,7 @@ import {
   MOCK_ONLINE_ORDERS,
   MOCK_AGGREGATOR_STATUS,
 } from '@/lib/mock-data';
+import { autoSyncCustomerFromBill } from '@/lib/crm';
 
 const createOrderSchema = z.object({
   outletId: z.string().default('outlet-01'),
@@ -96,6 +97,17 @@ export async function POST(request: NextRequest) {
       kitchenNotes: validated.kitchenNotes,
       tableId: validated.tableId,
     });
+
+    // Auto-sync customer into CRM & Customer Database
+    await autoSyncCustomerFromBill({
+      phone: validated.customerPhone,
+      name: validated.customerName,
+      billAmount: validated.total,
+      orderNumber: newOrder.orderNumber,
+      orderId: newOrder.id,
+      isSettled: validated.paymentMethod !== 'CASH_ON_DELIVERY',
+      paymentMode: validated.paymentMethod,
+    }).catch(() => null);
 
     return NextResponse.json(
       {

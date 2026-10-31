@@ -3,12 +3,15 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { MOCK_ORDERS, MOCK_TABLES } from '@/lib/mock-data';
 import { invalidateCache } from '@/lib/cache';
+import { autoSyncCustomerFromBill } from '@/lib/crm';
 
 const settleSchema = z.object({
   paymentMethod: z.enum(['CASH', 'CARD', 'UPI_QR', 'WALLET', 'DUE_CREDIT', 'SPLIT', 'OTHER']),
   amountPaid: z.number().positive(),
   tenderedCash: z.number().optional(),
   referenceNumber: z.string().optional().nullable(),
+  customerName: z.string().optional().nullable(),
+  customerPhone: z.string().optional().nullable(),
   splitPayments: z
     .array(
       z.object({
@@ -36,7 +39,7 @@ export async function POST(
       );
     }
 
-    const { paymentMethod, amountPaid, tenderedCash, referenceNumber, notes } = result.data;
+    const { paymentMethod, amountPaid, tenderedCash, referenceNumber, notes, customerName, customerPhone } = result.data;
     const changeDue = tenderedCash && tenderedCash > amountPaid ? tenderedCash - amountPaid : 0;
 
     let settledOrder: any = null;
@@ -55,8 +58,25 @@ export async function POST(
         tenderedCash,
         changeDue,
         settledAt: new Date(),
+        ...(customerPhone ? { customerPhone } : {}),
+        ...(customerName ? { customerName } : {}),
       };
       settledOrder = MOCK_ORDERS[idx];
+    }
+
+    // Automatically sync customer visit, spend & loyalty on settlement
+    const custPhone = customerPhone || settledOrder?.customerPhone;
+    const custName = customerName || settledOrder?.customerName;
+    if (custPhone) {
+      await autoSyncCustomerFromBill({
+        phone: custPhone,
+        name: custName,
+        billAmount: amountPaid,
+        orderNumber: settledOrder?.orderNumber || `BILL-${id}`,
+        orderId: settledOrder?.id || id,
+        isSettled: true,
+        paymentMode: paymentMethod,
+      }).catch(() => null);
     }
 
     // 2. Update live DB if connected

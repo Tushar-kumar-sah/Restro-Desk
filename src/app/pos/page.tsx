@@ -325,6 +325,8 @@ export default function PosBillingPage() {
   const handlePaymentSettled = async (settleData: any) => {
     try {
       let orderIdToSettle = currentOrderData?.id;
+      const effectiveCustName = settleData.customerName || customer?.name;
+      const effectiveCustPhone = settleData.customerPhone || customer?.phone;
 
       // 1. If an order hasn't been created yet (direct settlement without prior KOT), create it first
       if (!orderIdToSettle) {
@@ -335,8 +337,8 @@ export default function PosBillingPage() {
             outletId: selectedOutlet?.id || 'outlet-blr-ind-001',
             orderType,
             tableNumber: selectedTableNumber,
-            customerName: customer?.name,
-            customerPhone: customer?.phone,
+            customerName: effectiveCustName,
+            customerPhone: effectiveCustPhone,
             items: cart,
             discountPercent: discountType === 'PERCENT' ? discountValue : 0,
             discountAmount: discountType === 'FLAT' ? discountValue : 0,
@@ -357,7 +359,11 @@ export default function PosBillingPage() {
         const settleRes = await fetch(`/api/pos/orders/${orderIdToSettle}/settle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(settleData),
+          body: JSON.stringify({
+            ...settleData,
+            customerName: effectiveCustName,
+            customerPhone: effectiveCustPhone,
+          }),
         });
         const settleResData = await settleRes.json();
 
@@ -365,6 +371,7 @@ export default function PosBillingPage() {
         setIsBillPrintOpen(true);
         // Clear active cart only after payment is completely settled!
         clearCart();
+        setCustomer(null);
         toast.success('Bill successfully settled and closed!');
       }
     } catch (err) {

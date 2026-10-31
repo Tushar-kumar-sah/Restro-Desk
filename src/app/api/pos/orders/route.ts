@@ -5,6 +5,7 @@ import { getSessionUser } from '@/lib/auth';
 import { OrderType, OrderStatus } from '@prisma/client';
 import { MOCK_ORDERS, MOCK_KOTS, MOCK_TABLES } from '@/lib/mock-data';
 import { invalidateCache } from '@/lib/cache';
+import { autoSyncCustomerFromBill } from '@/lib/crm';
 
 const orderItemSchema = z.object({
   itemId: z.string(),
@@ -202,9 +203,28 @@ export async function POST(req: NextRequest) {
     const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const orderNumber = `ORD-${todayStr}-${String(seq).padStart(3, '0')}`;
     const kotNumber = `KOT-${seq + 100}`;
+    const orderId = `ord-${Date.now()}`;
+
+    // Automatically check and sync customer (new vs existing)
+    let attachedCustomer: any = null;
+    let isNewCustomer = false;
+    if (customerPhone) {
+      const syncResult = await autoSyncCustomerFromBill({
+        phone: customerPhone,
+        name: customerName,
+        billAmount: roundedTotal,
+        orderNumber,
+        orderId,
+        isSettled: false,
+      });
+      if (syncResult) {
+        attachedCustomer = syncResult.customer;
+        isNewCustomer = syncResult.isNew;
+      }
+    }
 
     const newOrder = {
-      id: `ord-${Date.now()}`,
+      id: orderId,
       brandId,
       outletId: outletId,
       orderNumber,
@@ -213,9 +233,9 @@ export async function POST(req: NextRequest) {
       status: 'PREPARING',
       tableNumber: data.tableNumber || (data.orderType === 'DINE_IN' ? 'T-01' : 'Counter'),
       tableId: data.tableId,
-      customerName: customerName || 'Walk-in Guest',
-      customerPhone: customerPhone || '',
-      customerId: data.customerId,
+      customerName: attachedCustomer?.name || customerName || 'Walk-in Guest',
+      customerPhone: attachedCustomer?.phone || customerPhone || '',
+      customerId: attachedCustomer?.id || data.customerId || null,
       subtotal: itemsSubtotal,
       discountAmount: calculatedDiscount,
       discountPercent: data.discountPercent,
@@ -352,6 +372,13 @@ export async function POST(req: NextRequest) {
         (i): i is typeof i & { itemId: string } => typeof i.itemId === 'string' && i.itemId.length > 0
       );
 
+      let dbCustomerId: string | undefined = undefined;
+      if (attachedCustomer?.id && !attachedCustomer.id.startsWith('cust-')) {
+        dbCustomerId = attachedCustomer.id;
+      } else if (data.customerId && !data.customerId.startsWith('cust-')) {
+        dbCustomerId = data.customerId;
+      }
+
       if (activeBrandId && activeOutletId && activeUserId) {
         const dbCreatedOrder = await prisma.order.create({
           data: {
@@ -362,7 +389,7 @@ export async function POST(req: NextRequest) {
             orderType: data.orderType,
             status: 'PREPARING',
             tableId: activeTableId || undefined,
-            customerId: data.customerId || undefined,
+            customerId: dbCustomerId,
             subtotal: itemsSubtotal,
             discountAmount: calculatedDiscount,
             discountPercent: data.discountPercent,
@@ -431,6 +458,8 @@ export async function POST(req: NextRequest) {
       success: true,
       message: 'Order created successfully and KOT sent to kitchen',
       order: newOrder,
+      isNewCustomer,
+      customer: attachedCustomer,
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });

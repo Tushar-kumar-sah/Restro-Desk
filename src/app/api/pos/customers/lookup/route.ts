@@ -25,7 +25,14 @@ export async function GET(req: NextRequest) {
     }
 
     if (!customer) {
-      customer = MOCK_CUSTOMERS.find((c) => c.phone.includes(clean) || clean.includes(c.phone));
+      customer = MOCK_CUSTOMERS.find((c) => {
+        const cClean = cleanIndianPhone(c.phone);
+        return (
+          cClean === clean ||
+          c.phone.replace(/\D/g, '').endsWith(clean) ||
+          clean.endsWith(c.phone.replace(/\D/g, ''))
+        );
+      });
     }
 
     if (!customer) {
@@ -34,12 +41,14 @@ export async function GET(req: NextRequest) {
         success: true,
         isNew: true,
         customer: {
+          id: `new-${clean}`,
           name: 'New Guest',
           phone: clean,
           points: 0,
           walletBalance: 0,
-          tier: 'Silver (New)',
+          tier: 'Silver Member',
           visits: 0,
+          totalSpend: 0,
         },
       });
     }
@@ -53,8 +62,9 @@ export async function GET(req: NextRequest) {
         phone: customer.phone,
         points: customer.points || customer.totalPoints || 0,
         walletBalance: customer.walletBalance || customer.wallet?.balance || 0,
-        tier: customer.tier?.name || customer.tier || 'Silver Member',
+        tier: customer.tier?.name || customer.tierName || customer.tier || 'Silver Member',
         visits: customer.visits || customer.visitCount || 1,
+        totalSpend: customer.totalSpend || 0,
       },
     });
   } catch (error: any) {

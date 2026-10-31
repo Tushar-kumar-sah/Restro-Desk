@@ -36,8 +36,15 @@ export async function GET(req: NextRequest) {
     const celebration = searchParams.get('celebration') || 'ALL'; // ALL | BIRTHDAY_MONTH | ANNIVERSARY_MONTH
     const exportMode = searchParams.get('export'); // 'csv'
 
-    let customerList: MockCustomer[] = [];
+    const mergedMap = new Map<string, MockCustomer>();
 
+    // 1. Load active mock customer store
+    for (const c of MOCK_CUSTOMERS) {
+      const key = cleanIndianPhone(c.phone) || c.id;
+      mergedMap.set(key, { ...c });
+    }
+
+    // 2. Fetch Prisma customers and overlay
     try {
       const dbCustomers = await prisma.customer.findMany({
         where: { isDeleted: false },
@@ -52,51 +59,72 @@ export async function GET(req: NextRequest) {
       });
 
       if (dbCustomers && dbCustomers.length > 0) {
-        customerList = dbCustomers.map((c) => ({
-          id: c.id,
-          brandId: c.brandId,
-          name: c.name,
-          phone: c.phone,
-          email: c.email,
-          birthday: c.birthday ? c.birthday.toISOString().split('T')[0] : null,
-          anniversary: c.anniversary ? c.anniversary.toISOString().split('T')[0] : null,
-          tierId: c.tierId || 'tier-silver',
-          tierName: c.tier?.name || 'Silver Member',
-          walletBalance: c.wallet?.balance || c.walletBalance,
-          totalPoints: c.totalPoints,
-          totalSpend: c.totalSpend,
-          visitCount: c.visitCount,
-          lastVisit: c.lastVisit ? c.lastVisit.toISOString() : c.createdAt.toISOString(),
-          isBlocked: c.isBlocked,
-          notes: '',
-          tags: c.tags.map((t) => t.tag.name),
-          address: {
-            addressLine1: c.addresses[0]?.addressLine1 || '',
-            city: c.addresses[0]?.city || '',
-            state: c.addresses[0]?.state || '',
-            postalCode: c.addresses[0]?.postalCode || '',
-          },
-          favoriteItems: [],
-          recentOrders: c.orders.map((o) => ({
-            id: o.id,
-            orderNumber: o.orderNumber,
-            date: new Date(o.createdAt).toLocaleDateString('en-IN'),
-            billAmount: o.totalAmount,
-            status: o.status,
-            paymentMode: 'CARD',
-            itemsSummary: `${o.orderType} order`,
-          })),
-          loyaltyLedger: [],
-          walletLedger: [],
-        }));
+        for (const c of dbCustomers) {
+          const key = cleanIndianPhone(c.phone) || c.id;
+          const existing = mergedMap.get(key);
+
+          const mappedDbCustomer: MockCustomer = {
+            id: c.id,
+            brandId: c.brandId,
+            name: c.name,
+            phone: c.phone,
+            email: c.email,
+            birthday: c.birthday ? c.birthday.toISOString().split('T')[0] : null,
+            anniversary: c.anniversary ? c.anniversary.toISOString().split('T')[0] : null,
+            tierId: c.tierId || 'tier-silver',
+            tierName: c.tier?.name || 'Silver Member',
+            walletBalance: c.wallet?.balance || c.walletBalance,
+            totalPoints: c.totalPoints,
+            totalSpend: c.totalSpend,
+            visitCount: c.visitCount,
+            lastVisit: c.lastVisit ? c.lastVisit.toISOString() : c.createdAt.toISOString(),
+            isBlocked: c.isBlocked,
+            notes: '',
+            tags: c.tags.length > 0 ? c.tags.map((t) => t.tag.name) : ['New Guest'],
+            address: {
+              addressLine1: c.addresses[0]?.addressLine1 || '',
+              city: c.addresses[0]?.city || '',
+              state: c.addresses[0]?.state || '',
+              postalCode: c.addresses[0]?.postalCode || '',
+            },
+            favoriteItems: [],
+            recentOrders: c.orders.map((o) => ({
+              id: o.id,
+              orderNumber: o.orderNumber,
+              date: new Date(o.createdAt).toLocaleDateString('en-IN'),
+              billAmount: o.totalAmount,
+              status: o.status,
+              paymentMode: 'CARD',
+              itemsSummary: `${o.orderType} order`,
+            })),
+            loyaltyLedger: [],
+            walletLedger: [],
+          };
+
+          if (existing) {
+            mergedMap.set(key, {
+              ...existing,
+              id: c.id,
+              totalSpend: Math.max(existing.totalSpend, c.totalSpend),
+              visitCount: Math.max(existing.visitCount, c.visitCount),
+              totalPoints: Math.max(existing.totalPoints, c.totalPoints),
+              walletBalance: Math.max(existing.walletBalance, mappedDbCustomer.walletBalance),
+              lastVisit: c.lastVisit ? c.lastVisit.toISOString() : existing.lastVisit,
+              recentOrders:
+                mappedDbCustomer.recentOrders.length > 0
+                  ? mappedDbCustomer.recentOrders
+                  : existing.recentOrders,
+            });
+          } else {
+            mergedMap.set(key, mappedDbCustomer);
+          }
+        }
       }
     } catch (dbErr) {
-      // fallback to mock data
+      // offline fallback to mock data
     }
 
-    if (customerList.length === 0) {
-      customerList = [...MOCK_CUSTOMERS];
-    }
+    let customerList: MockCustomer[] = Array.from(mergedMap.values());
 
     // Apply Filters
     let filtered = customerList.filter((c) => {
@@ -238,7 +266,7 @@ export async function POST(req: NextRequest) {
     const cleanPhone = cleanIndianPhone(validated.phone);
 
     // Check duplicate phone
-    const existingMock = MOCK_CUSTOMERS.find((c) => c.phone === cleanPhone);
+    const existingMock = MOCK_CUSTOMERS.find((c) => cleanIndianPhone(c.phone) === cleanPhone);
     if (existingMock) {
       return NextResponse.json(
         { success: false, message: `Customer with mobile +91 ${cleanPhone} already exists` },
@@ -306,15 +334,32 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-      await prisma.customer.create({
+      let brandId = 'd072c454-2537-4f98-a227-c93f26c9c501';
+      const b = await prisma.brand.findFirst().catch(() => null);
+      if (b) brandId = b.id;
+
+      let tierId: string | undefined = undefined;
+      const dbTier = await prisma.loyaltyTier
+        .findFirst({
+          where: {
+            OR: [
+              { id: validated.tierId },
+              { name: { contains: validated.tierId?.replace('tier-', '') || 'Silver', mode: 'insensitive' } },
+            ],
+          },
+        })
+        .catch(() => null);
+      if (dbTier) tierId = dbTier.id;
+
+      const createdInDb = await prisma.customer.create({
         data: {
-          brandId: 'brand-restodesk-001',
+          brandId,
           name: newCustomer.name,
           phone: newCustomer.phone,
           email: newCustomer.email,
           birthday: newCustomer.birthday ? new Date(newCustomer.birthday) : null,
           anniversary: newCustomer.anniversary ? new Date(newCustomer.anniversary) : null,
-          tierId: newCustomer.tierId,
+          tierId: tierId || undefined,
           walletBalance: newCustomer.walletBalance,
           totalPoints: newCustomer.totalPoints,
           totalSpend: 0,
@@ -329,6 +374,9 @@ export async function POST(req: NextRequest) {
           },
         },
       });
+      if (createdInDb) {
+        newCustomer.id = createdInDb.id;
+      }
     } catch (dbErr) {
       // offline fallback
     }
