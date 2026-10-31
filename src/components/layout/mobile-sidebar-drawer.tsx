@@ -66,6 +66,7 @@ export function MobileSidebarDrawer() {
         <div className="flex h-16 items-center justify-between border-b px-4 shrink-0">
           <Link
             href="/dashboard"
+            scroll={false}
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 overflow-hidden"
           >
@@ -99,6 +100,7 @@ export function MobileSidebarDrawer() {
           </Link>
 
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(false)}
             className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             title="Close Menu"
@@ -136,6 +138,7 @@ export function MobileSidebarDrawer() {
                         <Link
                           key={item.href}
                           href={item.href}
+                          scroll={false}
                           onClick={() => setMobileMenuOpen(false)}
                           className={cn(
                             'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all group relative',

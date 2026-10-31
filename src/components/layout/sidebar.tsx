@@ -133,17 +133,95 @@ export function isNavItemActive(
   return false;
 }
 
+// Module-level persistent state across SPA page navigations
+let globalSidebarScrollTop = 0;
+let globalCollapsedGroups: Record<string, boolean> = {};
+
 export function Sidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebar } = useAppStore();
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('restodesk_collapsed_groups');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return globalCollapsedGroups;
+  });
+
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const isRestoringScrollRef = React.useRef(false);
 
   const toggleGroup = (groupLabel: string) => {
-    setCollapsedGroups((prev) => ({
-      ...prev,
-      [groupLabel]: !prev[groupLabel],
-    }));
+    setCollapsedGroups((prev) => {
+      const next = {
+        ...prev,
+        [groupLabel]: !prev[groupLabel],
+      };
+      globalCollapsedGroups = next;
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.setItem('restodesk_collapsed_groups', JSON.stringify(next));
+        } catch (e) {}
+      }
+      return next;
+    });
   };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isRestoringScrollRef.current) return;
+    const top = e.currentTarget.scrollTop;
+    globalSidebarScrollTop = top;
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('restodesk_sidebar_scroll', String(top));
+      } catch (e) {}
+    }
+  };
+
+  // Restore scroll position on mount and on route change
+  React.useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    let targetScroll = globalSidebarScrollTop;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('restodesk_sidebar_scroll');
+        if (stored) {
+          targetScroll = parseInt(stored, 10);
+        }
+      } catch (e) {}
+    }
+
+    isRestoringScrollRef.current = true;
+    el.scrollTop = targetScroll;
+
+    // After restoring, ensure active link remains visible in viewport without jumping to top
+    requestAnimationFrame(() => {
+      if (el) {
+        el.scrollTop = targetScroll;
+        const activeLink = el.querySelector<HTMLElement>('[data-active="true"]');
+        if (activeLink) {
+          const elRect = el.getBoundingClientRect();
+          const linkRect = activeLink.getBoundingClientRect();
+          if (linkRect.top < elRect.top) {
+            el.scrollTop -= (elRect.top - linkRect.top + 16);
+          } else if (linkRect.bottom > elRect.bottom) {
+            el.scrollTop += (linkRect.bottom - elRect.bottom + 16);
+          }
+          globalSidebarScrollTop = el.scrollTop;
+          try {
+            sessionStorage.setItem('restodesk_sidebar_scroll', String(el.scrollTop));
+          } catch (e) {}
+        }
+      }
+      setTimeout(() => {
+        isRestoringScrollRef.current = false;
+      }, 50);
+    });
+  }, [pathname]);
 
   return (
     <aside
@@ -154,7 +232,7 @@ export function Sidebar() {
     >
       {/* Brand Header */}
       <div className="flex h-16 items-center justify-between border-b px-4">
-        <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
+        <Link href="/dashboard" scroll={false} className="flex items-center gap-3 overflow-hidden">
           {/* Original RestoDesk SVG Logo */}
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-md shadow-orange-500/20">
             <svg
@@ -189,6 +267,7 @@ export function Sidebar() {
 
         {!isSidebarCollapsed && (
           <button
+            type="button"
             onClick={toggleSidebar}
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             title="Collapse Sidebar"
@@ -199,7 +278,11 @@ export function Sidebar() {
       </div>
 
       {/* Navigation Groups List */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-3 py-4 space-y-6"
+      >
         {NAV_GROUPS.map((group) => {
           const isGroupCollapsed = collapsedGroups[group.label];
           return (
@@ -231,6 +314,19 @@ export function Sidebar() {
                       <Link
                         key={item.href}
                         href={item.href}
+                        scroll={false}
+                        data-active={isActive ? 'true' : 'false'}
+                        onClick={() => {
+                          if (scrollContainerRef.current) {
+                            const top = scrollContainerRef.current.scrollTop;
+                            globalSidebarScrollTop = top;
+                            if (typeof window !== 'undefined') {
+                              try {
+                                sessionStorage.setItem('restodesk_sidebar_scroll', String(top));
+                              } catch (e) {}
+                            }
+                          }
+                        }}
                         className={cn(
                           'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all group relative',
                           isActive
@@ -268,6 +364,7 @@ export function Sidebar() {
       <div className="border-t p-3 bg-muted/30">
         {isSidebarCollapsed ? (
           <button
+            type="button"
             onClick={toggleSidebar}
             className="flex w-full items-center justify-center rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
             title="Expand Sidebar"

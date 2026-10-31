@@ -37,6 +37,7 @@ export function MobileBottomNav() {
           <Link
             key={item.href}
             href={item.href}
+            scroll={false}
             className={cn(
               'flex flex-col items-center justify-center flex-1 h-full py-1 text-[11px] font-semibold transition-all relative',
               isActive
@@ -60,6 +61,7 @@ export function MobileBottomNav() {
 
       {/* More / Menu button */}
       <button
+        type="button"
         onClick={() => setMobileMenuOpen(true)}
         className="flex flex-col items-center justify-center flex-1 h-full py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-all"
         title="Open Full Navigation Menu"
