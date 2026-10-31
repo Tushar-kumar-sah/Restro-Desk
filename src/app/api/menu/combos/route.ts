@@ -87,3 +87,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get('id');
+
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body.id;
+      } catch (e) {}
+    }
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: 'Combo ID is required' },
+        { status: 400 }
+      );
+    }
+
+    try {
+      await prisma.combo.update({
+        where: { id },
+        data: { isDeleted: true, deletedAt: new Date() },
+      });
+    } catch (err) {
+      // offline fallback
+    }
+
+    const idx = MOCK_COMBOS.findIndex((c: any) => c.id === id);
+    if (idx !== -1) {
+      MOCK_COMBOS.splice(idx, 1);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Combo deal removed successfully',
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+  }
+}

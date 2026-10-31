@@ -39,6 +39,8 @@ export default function MenuCatalogPage() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [csvContent, setCsvContent] = useState('');
+  const [itemToDelete, setItemToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -99,6 +101,28 @@ export default function MenuCatalogPage() {
       }
     } catch (err) {
       toast.error('Failed to update status');
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/menu/items/${itemToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Item "${itemToDelete.name}" deleted successfully`);
+        setItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
+        setItemToDelete(null);
+      } else {
+        toast.error(data.message || 'Failed to delete item');
+      }
+    } catch (err) {
+      toast.error('Failed to delete item');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -364,27 +388,40 @@ export default function MenuCatalogPage() {
                     </button>
                   </td>
                   <td className="p-3.5 pr-4 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => {
-                        setEditingItem(item);
-                        setFormData({
-                          name: item.name,
-                          shortCode: item.shortCode || '',
-                          categoryId: item.categoryId,
-                          foodType: item.foodType,
-                          basePrice: item.basePrice,
-                          preparationTime: item.preparationTime || 15,
-                          hsnCode: item.hsnCode || '2106',
-                          description: item.description || '',
-                        });
-                        setIsAddModalOpen(true);
-                      }}
-                      className="rounded-lg text-muted-foreground hover:text-foreground"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => {
+                          setEditingItem(item);
+                          setFormData({
+                            name: item.name,
+                            shortCode: item.shortCode || '',
+                            categoryId: item.categoryId,
+                            foodType: item.foodType,
+                            basePrice: item.basePrice,
+                            preparationTime: item.preparationTime || 15,
+                            hsnCode: item.hsnCode || '2106',
+                            description: item.description || '',
+                          });
+                          setIsAddModalOpen(true);
+                        }}
+                        title={`Edit ${item.name}`}
+                        className="rounded-lg text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setItemToDelete(item)}
+                        title={`Delete ${item.name}`}
+                        className="rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -535,6 +572,42 @@ export default function MenuCatalogPage() {
                 Import CSV Rows
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Item Confirmation Modal */}
+      <Dialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <DialogContent className="max-w-sm sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              <span>Delete Menu Item?</span>
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete &quot;<strong>{itemToDelete?.name}</strong>&quot; from your menu?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setItemToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleDeleteItem}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
+              {isDeleting ? 'Deleting...' : 'Yes, Delete Item'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

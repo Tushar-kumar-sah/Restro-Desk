@@ -1,20 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Plus, Edit2, Trash2, CheckCircle2, XCircle } from 'lucide-react';
+import { Sparkles, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/formatters';
 import { toast } from 'sonner';
 
 export default function CombosPage() {
   const [combos, setCombos] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [comboToDelete, setComboToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -38,7 +40,7 @@ export default function CombosPage() {
 
   const handleSaveCombo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !price) {
+    if (!name.trim() || !price) {
       toast.error('Enter combo name and price');
       return;
     }
@@ -48,9 +50,9 @@ export default function CombosPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          description,
-          price,
+          name: name.trim(),
+          description: description.trim(),
+          price: Number(price) || 0,
           itemIds: ['itm-01', 'itm-02'], // sample bundled items
         }),
       });
@@ -60,10 +62,36 @@ export default function CombosPage() {
         setIsModalOpen(false);
         setName('');
         setDescription('');
+        setPrice(499);
+        setOriginalPrice(650);
         fetchCombos();
+      } else {
+        toast.error(data.message || 'Failed to create combo');
       }
     } catch (err) {
       toast.error('Failed to create combo');
+    }
+  };
+
+  const handleDeleteCombo = async () => {
+    if (!comboToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/menu/combos?id=${comboToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Combo "${comboToDelete.name}" removed successfully`);
+        setCombos((prev) => prev.filter((c) => c.id !== comboToDelete.id));
+        setComboToDelete(null);
+      } else {
+        toast.error(data.message || 'Failed to remove combo');
+      }
+    } catch (err) {
+      toast.error('Failed to remove combo');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -96,13 +124,25 @@ export default function CombosPage() {
         {combos.map((combo) => {
           const savings = combo.originalPrice ? combo.originalPrice - combo.price : 0;
           return (
-            <Card key={combo.id} className="rounded-2xl shadow-xs overflow-hidden flex flex-col justify-between">
+            <Card key={combo.id} className="rounded-2xl shadow-xs overflow-hidden flex flex-col justify-between border">
               <CardHeader className="pb-3 border-b bg-muted/20">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold">{combo.name}</CardTitle>
-                  <Badge variant="brand" className="text-[10px] uppercase font-bold">
-                    Value Deal
-                  </Badge>
+                  <CardTitle className="text-sm font-bold text-foreground">{combo.name}</CardTitle>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant="brand" className="text-[10px] uppercase font-bold">
+                      Value Deal
+                    </Badge>
+
+                    {/* Delete Combo Button */}
+                    <button
+                      type="button"
+                      onClick={() => setComboToDelete(combo)}
+                      title={`Delete "${combo.name}" combo`}
+                      className="p-1 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
                 {combo.description && (
                   <CardDescription className="text-xs line-clamp-2 mt-1">
@@ -143,11 +183,50 @@ export default function CombosPage() {
         })}
       </div>
 
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!comboToDelete} onOpenChange={(open) => !open && setComboToDelete(null)}>
+        <DialogContent className="max-w-sm sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              <span>Delete Combo Deal?</span>
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently remove &quot;<strong>{comboToDelete?.name}</strong>&quot; from your active menu deals?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setComboToDelete(null)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleDeleteCombo}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
+              {isDeleting ? 'Deleting...' : 'Yes, Delete Combo'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Create Combo Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-md sm:rounded-2xl">
           <DialogHeader>
             <DialogTitle>Create Combo Value Pack</DialogTitle>
+            <DialogDescription>
+              Bundle menu items into a special meal deal with custom combo pricing.
+            </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSaveCombo} className="space-y-4 pt-2">
@@ -195,7 +274,7 @@ export default function CombosPage() {
               <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-orange-600 hover:bg-orange-700">
+              <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white font-semibold">
                 Publish Combo
               </Button>
             </div>
