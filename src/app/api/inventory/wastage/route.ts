@@ -92,3 +92,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: 'Wastage ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const index = MOCK_WASTAGE.findIndex((w) => w.id === id);
+    if (index === -1) {
+      return NextResponse.json(
+        { success: false, message: 'Wastage record not found' },
+        { status: 404 }
+      );
+    }
+
+    const record = MOCK_WASTAGE[index];
+
+    // Restore stock for each item in the wastage record
+    for (const item of record.items) {
+      const rm = MOCK_RAW_MATERIALS.find((m) => m.id === item.rawMaterialId);
+      if (rm) {
+        rm.currentStock = Math.round((rm.currentStock + item.quantity) * 100) / 100;
+      }
+    }
+
+    MOCK_WASTAGE.splice(index, 1);
+
+    return NextResponse.json({
+      success: true,
+      message: `Wastage record ${record.wastageNumber} deleted and stock restored.`,
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+  }
+}

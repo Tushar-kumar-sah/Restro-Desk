@@ -28,34 +28,40 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category') || 'ALL';
     const status = searchParams.get('status') || 'ALL'; // ALL | LOW_STOCK | CRITICAL
 
-    let materials: MockRawMaterial[] = [];
+    // Base materials from active in-memory list
+    let materials: MockRawMaterial[] = [...MOCK_RAW_MATERIALS.filter((m) => !m.isDeleted)];
 
     try {
       const dbMaterials = await prisma.rawMaterial.findMany({
         where: { isDeleted: false },
-        orderBy: { name: 'asc' },
+        orderBy: { createdAt: 'desc' },
       });
 
-      if (dbMaterials && dbMaterials.length > 0) {
-        materials = dbMaterials.map((m) => ({
-          id: m.id,
-          brandId: m.brandId,
-          name: m.name,
-          sku: m.sku || `RM-${m.id.slice(0, 4)}`,
-          category: 'Produce & Veg',
-          unit: m.unit as any,
-          currentStock: m.currentStock,
-          minAlertStock: m.minAlertStock,
-          costPerUnit: m.costPerUnit,
-          isDeleted: m.isDeleted,
-        }));
+      for (const dbm of dbMaterials) {
+        const existing = materials.find((m) => m.id === dbm.id || m.sku === dbm.sku);
+        if (existing) {
+          existing.currentStock = dbm.currentStock;
+          existing.minAlertStock = dbm.minAlertStock;
+          existing.costPerUnit = dbm.costPerUnit;
+          existing.unit = dbm.unit as any;
+          existing.name = dbm.name;
+        } else {
+          materials.unshift({
+            id: dbm.id,
+            brandId: dbm.brandId,
+            name: dbm.name,
+            sku: dbm.sku || `RM-${dbm.id.slice(0, 4)}`,
+            category: 'Produce & Veg',
+            unit: dbm.unit as any,
+            currentStock: dbm.currentStock,
+            minAlertStock: dbm.minAlertStock,
+            costPerUnit: dbm.costPerUnit,
+            isDeleted: dbm.isDeleted,
+          });
+        }
       }
     } catch (dbErr) {
       // offline fallback
-    }
-
-    if (materials.length === 0) {
-      materials = [...MOCK_RAW_MATERIALS];
     }
 
     const filtered = materials.filter((m) => {
@@ -102,9 +108,15 @@ export async function POST(req: NextRequest) {
       ? validated.sku.toUpperCase()
       : `RM-${validated.category.slice(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
 
+    let brandId = 'd072c454-2537-4f98-a227-c93f26c9c501';
+    try {
+      const dbBrand = await prisma.brand.findFirst();
+      if (dbBrand) brandId = dbBrand.id;
+    } catch (e) {}
+
     const newMaterial: MockRawMaterial = {
       id: `rm-${Date.now()}`,
-      brandId: 'brand-restodesk-001',
+      brandId,
       name: validated.name.trim(),
       sku: generatedSku,
       category: validated.category,
@@ -116,9 +128,9 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-      await prisma.rawMaterial.create({
+      const created = await prisma.rawMaterial.create({
         data: {
-          brandId: 'brand-restodesk-001',
+          brandId,
           name: newMaterial.name,
           sku: newMaterial.sku,
           unit: newMaterial.unit as any,
@@ -127,6 +139,7 @@ export async function POST(req: NextRequest) {
           costPerUnit: newMaterial.costPerUnit,
         },
       });
+      newMaterial.id = created.id;
     } catch (dbErr) {
       // offline fallback
     }

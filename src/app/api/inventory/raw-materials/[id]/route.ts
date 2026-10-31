@@ -5,6 +5,16 @@ import { MOCK_RAW_MATERIALS } from '@/lib/mock-data';
 
 const RawMaterialUpdateSchema = z.object({
   name: z.string().min(2).optional(),
+  category: z.enum([
+    'Dairy',
+    'Poultry & Meat',
+    'Produce & Veg',
+    'Spices & Seasonings',
+    'Grains & Staples',
+    'Beverages & Syrups',
+    'Packaging',
+  ]).optional(),
+  unit: z.enum(['KG', 'GRAM', 'LITER', 'ML', 'PIECE', 'PACKET']).optional(),
   currentStock: z.number().min(0).optional(),
   minAlertStock: z.number().min(0).optional(),
   costPerUnit: z.number().min(0).optional(),
@@ -35,6 +45,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     if (validated.name !== undefined) material.name = validated.name;
+    if (validated.category !== undefined) material.category = validated.category;
+    if (validated.unit !== undefined) material.unit = validated.unit;
     if (validated.currentStock !== undefined) material.currentStock = validated.currentStock;
     if (validated.minAlertStock !== undefined) material.minAlertStock = validated.minAlertStock;
     if (validated.costPerUnit !== undefined) material.costPerUnit = validated.costPerUnit;
@@ -43,10 +55,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       await prisma.rawMaterial.update({
         where: { id },
         data: {
-          name: validated.name,
-          currentStock: validated.currentStock,
-          minAlertStock: validated.minAlertStock,
-          costPerUnit: validated.costPerUnit,
+          ...(validated.name !== undefined && { name: validated.name }),
+          ...(validated.unit !== undefined && { unit: validated.unit as any }),
+          ...(validated.currentStock !== undefined && { currentStock: validated.currentStock }),
+          ...(validated.minAlertStock !== undefined && { minAlertStock: validated.minAlertStock }),
+          ...(validated.costPerUnit !== undefined && { costPerUnit: validated.costPerUnit }),
         },
       });
     } catch (dbErr) {

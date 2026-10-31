@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import prisma from '@/lib/prisma';
 import { MOCK_RAW_MATERIALS } from '@/lib/mock-data';
 
 const AuditLineItemSchema = z.object({
@@ -46,6 +47,15 @@ export async function POST(req: NextRequest) {
 
       // Update the system stock to match the physical shelf count
       rm.currentStock = physicalStock;
+
+      try {
+        await prisma.rawMaterial.update({
+          where: { id: rm.id },
+          data: { currentStock: physicalStock },
+        });
+      } catch (dbErr) {
+        // offline fallback
+      }
     }
 
     return NextResponse.json({
