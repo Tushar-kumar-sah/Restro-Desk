@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAppStore } from '@/store/useAppStore';
 import { toast } from 'sonner';
+import { AppShell } from '@/components/layout/app-shell';
 
 export default function SetupWizardPage() {
   const router = useRouter();
@@ -109,8 +110,8 @@ export default function SetupWizardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30 py-10 px-4 flex flex-col items-center justify-center">
-      <div className="w-full max-w-3xl space-y-6">
+    <AppShell>
+      <div className="max-w-4xl mx-auto space-y-6">
         {/* Brand Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -537,6 +538,6 @@ export default function SetupWizardPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AppShell>
   );
 }
