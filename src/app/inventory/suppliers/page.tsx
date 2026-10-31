@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { formatCurrency, formatIndianPhone } from '@/lib/formatters';
+import { toast } from 'sonner';
 import {
   Building2,
   Plus,
@@ -32,6 +33,7 @@ import {
   CreditCard,
   ChevronRight,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react';
 
 interface SupplierItem {
@@ -63,6 +65,8 @@ export default function SuppliersPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<SupplierItem | null>(null);
+  const [supplierToDelete, setSupplierToDelete] = useState<SupplierItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [supplierDetails, setSupplierDetails] = useState<{ purchaseOrders: any[]; grns: any[] } | null>(
     null
   );
@@ -187,6 +191,32 @@ export default function SuppliersPage() {
       }
     } catch (err: any) {
       showToast(err.message, 'error');
+    }
+  };
+
+  const handleDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/inventory/suppliers/${supplierToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Supplier "${supplierToDelete.name}" removed successfully`);
+        showToast(`Supplier "${supplierToDelete.name}" removed successfully`);
+        setSuppliers((prev) => prev.filter((s) => s.id !== supplierToDelete.id));
+        setSupplierToDelete(null);
+        fetchSuppliers();
+      } else {
+        toast.error(data.message || 'Failed to remove supplier');
+        showToast(data.message || 'Failed to remove supplier', 'error');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error deleting supplier');
+      showToast(err.message || 'Error deleting supplier', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -414,6 +444,16 @@ export default function SuppliersPage() {
                           >
                             Statement
                             <ChevronRight className="w-3.5 h-3.5" />
+                          </Button>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setSupplierToDelete(s)}
+                            title={`Delete ${s.name}`}
+                            className="h-8 w-8 text-neutral-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </td>
@@ -647,23 +687,93 @@ export default function SuppliersPage() {
                   </div>
                 </div>
 
-                <DialogFooter className="pt-2 border-t flex justify-between sm:justify-between">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setPayAmount(selectedSupplier.outstandingBalance);
-                      setIsPayModalOpen(true);
-                    }}
-                    className="text-xs text-emerald-600 border-emerald-200"
-                  >
-                    Record Payment to Vendor
-                  </Button>
+                <DialogFooter className="pt-2 border-t flex items-center justify-between sm:justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setPayAmount(selectedSupplier.outstandingBalance);
+                        setIsPayModalOpen(true);
+                      }}
+                      className="text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                    >
+                      Record Payment
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const sup = selectedSupplier;
+                        setSelectedSupplier(null);
+                        setSupplierToDelete(sup);
+                      }}
+                      className="text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-950 gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Remove Vendor
+                    </Button>
+                  </div>
+
                   <Button variant="default" onClick={() => setSelectedSupplier(null)} className="bg-neutral-900 text-white">
                     Close Statement
                   </Button>
                 </DialogFooter>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ========================================================================= */}
+        {/* DELETE SUPPLIER CONFIRMATION MODAL */}
+        {/* ========================================================================= */}
+        <Dialog open={!!supplierToDelete} onOpenChange={(open) => !open && setSupplierToDelete(null)}>
+          <DialogContent className="max-w-md sm:rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <Trash2 className="h-5 w-5" />
+                <span>Delete Supplier?</span>
+              </DialogTitle>
+              <DialogDescription className="space-y-3 pt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                <div>
+                  Are you sure you want to permanently delete &quot;<strong>{supplierToDelete?.name}</strong>&quot; from your suppliers ledger?
+                </div>
+
+                {supplierToDelete && supplierToDelete.outstandingBalance > 0 && (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      Outstanding Liability Warning
+                    </div>
+                    <p>
+                      This vendor has an unsettled outstanding balance of{' '}
+                      <strong>{formatCurrency(supplierToDelete.outstandingBalance)}</strong>. Deleting will archive the supplier ledger.
+                    </p>
+                  </div>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSupplierToDelete(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleDeleteSupplier}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold"
+              >
+                {isDeleting ? 'Removing...' : 'Yes, Delete Supplier'}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

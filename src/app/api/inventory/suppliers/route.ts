@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search')?.toLowerCase().trim() || '';
 
-    let suppliers: MockSupplier[] = [];
+    // Base suppliers from active in-memory list
+    let suppliers: MockSupplier[] = [...MOCK_SUPPLIERS];
 
     try {
       const dbSuppliers = await prisma.supplier.findMany({
@@ -30,29 +31,35 @@ export async function GET(req: NextRequest) {
         orderBy: { name: 'asc' },
       });
 
-      if (dbSuppliers && dbSuppliers.length > 0) {
-        suppliers = dbSuppliers.map((s) => ({
-          id: s.id,
-          brandId: s.brandId,
-          name: s.name,
-          contactPerson: s.contactPerson || '',
-          phone: s.phone,
-          email: s.email || '',
-          gstin: s.gstin || '',
-          address: s.address || '',
-          city: s.city || 'Bengaluru',
-          state: s.state || 'Karnataka',
-          paymentTerms: s.paymentTerms || 'Net 30 Days',
-          outstandingBalance: 0,
-          totalPurchasesYtd: 0,
-        }));
+      for (const ds of dbSuppliers) {
+        const existing = suppliers.find((s) => s.id === ds.id);
+        if (existing) {
+          existing.name = ds.name;
+          existing.contactPerson = ds.contactPerson || '';
+          existing.phone = ds.phone;
+          existing.email = ds.email || '';
+          existing.gstin = ds.gstin || '';
+          existing.address = ds.address || '';
+        } else {
+          suppliers.unshift({
+            id: ds.id,
+            brandId: ds.brandId,
+            name: ds.name,
+            contactPerson: ds.contactPerson || '',
+            phone: ds.phone,
+            email: ds.email || '',
+            gstin: ds.gstin || '',
+            address: ds.address || '',
+            city: ds.city || 'Bengaluru',
+            state: ds.state || 'Karnataka',
+            paymentTerms: ds.paymentTerms || 'Net 30 Days',
+            outstandingBalance: 0,
+            totalPurchasesYtd: 0,
+          });
+        }
       }
     } catch (dbErr) {
       // offline fallback
-    }
-
-    if (suppliers.length === 0) {
-      suppliers = [...MOCK_SUPPLIERS];
     }
 
     const filtered = suppliers.filter((s) => {
@@ -90,9 +97,15 @@ export async function POST(req: NextRequest) {
     const validated = SupplierCreateSchema.parse(body);
     const cleanPhone = cleanIndianPhone(validated.phone);
 
+    let brandId = 'd072c454-2537-4f98-a227-c93f26c9c501';
+    try {
+      const dbBrand = await prisma.brand.findFirst();
+      if (dbBrand) brandId = dbBrand.id;
+    } catch (e) {}
+
     const newSupplier: MockSupplier = {
       id: `sup-${Date.now()}`,
-      brandId: 'brand-restodesk-001',
+      brandId,
       name: validated.name.trim(),
       contactPerson: validated.contactPerson.trim(),
       phone: cleanPhone,
@@ -107,9 +120,9 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-      await prisma.supplier.create({
+      const created = await prisma.supplier.create({
         data: {
-          brandId: 'brand-restodesk-001',
+          brandId,
           name: newSupplier.name,
           contactPerson: newSupplier.contactPerson,
           phone: newSupplier.phone,
@@ -121,6 +134,7 @@ export async function POST(req: NextRequest) {
           paymentTerms: newSupplier.paymentTerms,
         },
       });
+      newSupplier.id = created.id;
     } catch (dbErr) {
       // offline fallback
     }

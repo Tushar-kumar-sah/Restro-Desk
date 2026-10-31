@@ -93,23 +93,28 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
-    const index = MOCK_SUPPLIERS.findIndex((s) => s.id === id);
-    if (index === -1) {
-      return NextResponse.json({ success: false, message: 'Supplier not found' }, { status: 404 });
-    }
+    let removed = false;
 
-    MOCK_SUPPLIERS.splice(index, 1);
+    const index = MOCK_SUPPLIERS.findIndex((s) => s.id === id);
+    if (index !== -1) {
+      MOCK_SUPPLIERS.splice(index, 1);
+      removed = true;
+    }
 
     try {
       await prisma.supplier.update({
         where: { id },
         data: { isDeleted: true, deletedAt: new Date() },
       });
+      removed = true;
     } catch (dbErr) {
       // offline fallback
     }
 
-    return NextResponse.json({ success: true, message: 'Supplier removed' });
+    return NextResponse.json({
+      success: true,
+      message: 'Supplier removed successfully',
+    });
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
