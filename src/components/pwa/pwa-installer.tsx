@@ -75,40 +75,42 @@ export function PwaConnectivityBar() {
   };
 
   return (
-    <div className="flex items-center gap-2 text-xs">
+    <div className="flex items-center gap-1.5 sm:gap-2 text-xs">
       {/* Offline Alert Pill */}
       {!isOnline ? (
         <Badge
           variant="outline"
-          className="bg-amber-50 text-amber-800 border-amber-300 font-semibold gap-1.5 py-1 px-2.5 animate-pulse"
+          className="h-8 bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700 font-semibold gap-1.5 px-2.5 rounded-xl animate-pulse text-xs"
         >
-          <WifiOff className="h-3 w-3 text-amber-600" />
-          <span>Offline Mode ({queueLength} Queued)</span>
+          <WifiOff className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="hidden sm:inline">Offline Mode</span>
+          <span>({queueLength})</span>
           <button
             onClick={handleManualSync}
             disabled={isSyncing}
-            className="ml-1 p-0.5 hover:bg-amber-100 rounded"
+            className="ml-1 p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900 rounded cursor-pointer"
             title="Retry Sync"
           >
-            <RefreshCw className={`h-3 w-3 text-amber-700 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3 w-3 text-amber-700 dark:text-amber-300 ${isSyncing ? 'animate-spin' : ''}`} />
           </button>
         </Badge>
       ) : queueLength > 0 ? (
         <Badge
           variant="outline"
-          className="bg-blue-50 text-blue-800 border-blue-300 font-semibold gap-1.5 py-1 px-2.5 cursor-pointer"
+          className="h-8 bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-700 font-semibold gap-1.5 px-2.5 rounded-xl cursor-pointer text-xs"
           onClick={handleManualSync}
         >
-          <RefreshCw className={`h-3 w-3 text-blue-600 ${isSyncing ? 'animate-spin' : ''}`} />
-          <span>Sync {queueLength} Bill(s)</span>
+          <RefreshCw className={`h-3 w-3 text-blue-600 dark:text-blue-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+          <span>Sync {queueLength}</span>
         </Badge>
       ) : (
         <Badge
           variant="outline"
-          className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium gap-1 py-0.5 px-2 hidden sm:inline-flex"
+          className="h-8 bg-emerald-50/80 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 font-medium gap-1.5 px-2.5 rounded-xl hidden sm:inline-flex text-xs shadow-2xs"
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span>Cloud Sync Active</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span className="hidden xl:inline">Cloud Sync Active</span>
+          <span className="xl:hidden inline">Synced</span>
         </Badge>
       )}
 
@@ -117,10 +119,11 @@ export function PwaConnectivityBar() {
         <Button
           size="sm"
           variant="outline"
-          className="h-7 text-xs border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100 gap-1 px-2"
+          className="h-8 text-xs font-semibold border-orange-200 text-orange-700 bg-orange-50/80 hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300 dark:hover:bg-orange-900/60 gap-1.5 px-2.5 rounded-xl hidden sm:inline-flex shadow-2xs cursor-pointer"
           onClick={handleInstallApp}
         >
-          <Download className="h-3 w-3" /> Install App
+          <Download className="h-3.5 w-3.5 shrink-0" />
+          <span>Install App</span>
         </Button>
       )}
     </div>
