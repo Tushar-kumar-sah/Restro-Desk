@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     // For local and demo purposes, mock OTP is 123456
     return NextResponse.json({
       success: true,
-      message: `OTP sent successfully to ${identifier}. (Use demo OTP: 123456)`,
+      message: `OTP sent successfully to ${identifier}.`,
       otpSentTo: identifier,
     });
   } catch (error: any) {

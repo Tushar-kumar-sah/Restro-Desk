@@ -320,10 +320,10 @@ export function Topbar() {
             <div className="absolute right-0 mt-2 w-60 rounded-xl border bg-card p-2 shadow-xl z-50 animate-in fade-in zoom-in-95">
               <div className="border-b px-2 pb-2 mb-1">
                 <div className="font-semibold text-sm text-foreground">
-                  {user?.name || 'Vikramaditya Roy'}
+                  {user?.name || 'Tibetan Admin'}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {user?.email || 'owner@restodesk.com'}
+                  {user?.email || 'tibetan@info.in'}
                 </div>
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <Badge variant="brand" className="text-[10px] uppercase font-bold">

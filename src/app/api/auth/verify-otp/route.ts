@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     // Validate demo OTP
     if (otp !== '123456') {
       return NextResponse.json(
-        { success: false, message: 'Invalid OTP. For testing, please use 123456.' },
+        { success: false, message: 'Invalid OTP. Please check the code and try again.' },
         { status: 400 }
       );
     }

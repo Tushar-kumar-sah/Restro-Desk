@@ -55,7 +55,7 @@ async function run() {
   const loginRes = await request('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: { identifier: 'owner@restodesk.com', password: 'Password@123' },
+    body: { identifier: 'tibetan@info.in', password: 'tibetan@2026' },
   });
   if (loginRes.statusCode !== 200) {
     throw new Error(`Authentication failed with status ${loginRes.statusCode}: ${loginRes.body}`);

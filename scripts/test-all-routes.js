@@ -50,8 +50,8 @@ async function run() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: {
-        identifier: 'owner@restodesk.com',
-        password: 'Password@123',
+        identifier: 'tibetan@info.in',
+        password: 'tibetan@2026',
       },
     });
 

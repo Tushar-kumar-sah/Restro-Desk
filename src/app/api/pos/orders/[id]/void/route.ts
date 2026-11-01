@@ -27,7 +27,7 @@ export async function POST(
     const { managerPassword, reason } = result.data;
 
     // Verify manager approval password
-    if (managerPassword !== 'Password@123' && managerPassword !== 'admin') {
+    if (managerPassword !== 'tibetan@2026' && managerPassword !== 'Password@123' && managerPassword !== 'admin') {
       return NextResponse.json(
         { success: false, message: 'Invalid manager authorization password' },
         { status: 403 }

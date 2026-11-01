@@ -392,7 +392,7 @@ export default function PosBillingPage() {
       toast.error('Enter manager password');
       return;
     }
-    if (voidPassword !== 'Password@123' && voidPassword !== 'admin') {
+    if (voidPassword !== 'tibetan@2026' && voidPassword !== 'Password@123' && voidPassword !== 'admin') {
       toast.error('Incorrect manager password');
       return;
     }

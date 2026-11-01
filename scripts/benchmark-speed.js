@@ -55,7 +55,7 @@ async function run() {
         resolve(cookie);
       });
     });
-    req.write(JSON.stringify({ identifier: 'owner@restodesk.com', password: 'Password@123' }));
+    req.write(JSON.stringify({ identifier: 'tibetan@info.in', password: 'tibetan@2026' }));
     req.end();
   });
 

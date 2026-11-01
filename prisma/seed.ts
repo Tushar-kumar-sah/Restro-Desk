@@ -124,42 +124,14 @@ async function main() {
   }
   console.log(`✅ 3 Outlets initialized (${createdOutlets.map((o) => o.name).join(', ')})`);
 
-  // 4. USERS (Demo credentials with Password@123)
-  const defaultPasswordHash = await hashPw('Password@123');
+  // 4. USERS (Admin account with tibetan@2026)
+  const defaultPasswordHash = await hashPw('tibetan@2026');
   const demoUsers = [
     {
-      name: 'Vikramaditya Roy (Owner)',
-      email: 'owner@restodesk.com',
+      name: 'Tibetan Admin',
+      email: 'tibetan@info.in',
       phone: '9876543210',
       roleType: 'OWNER',
-      outletId: createdOutlets[0].id,
-    },
-    {
-      name: 'Ananya Sharma (Manager)',
-      email: 'manager@restodesk.com',
-      phone: '9876543211',
-      roleType: 'MANAGER',
-      outletId: createdOutlets[0].id,
-    },
-    {
-      name: 'Rahul Nair (Cashier)',
-      email: 'cashier@restodesk.com',
-      phone: '9876543212',
-      roleType: 'CASHIER',
-      outletId: createdOutlets[0].id,
-    },
-    {
-      name: 'Karthik Gowda (Captain)',
-      email: 'waiter@restodesk.com',
-      phone: '9876543213',
-      roleType: 'WAITER',
-      outletId: createdOutlets[0].id,
-    },
-    {
-      name: 'Chef Sanjeev (Head Chef)',
-      email: 'kitchen@restodesk.com',
-      phone: '9876543214',
-      roleType: 'KITCHEN',
       outletId: createdOutlets[0].id,
     },
   ];
