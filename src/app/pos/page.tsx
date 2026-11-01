@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Search,
@@ -128,22 +129,41 @@ export default function PosBillingPage() {
     fetchMenu();
   }, []);
 
-  // When switching tables or opening POS with an empty cart, check for an existing running order
+  // When switching tables or opening POS, check for an existing running order
   useEffect(() => {
-    if (orderType !== 'DINE_IN' || !selectedTableNumber) return;
-    if (cart.length > 0) return;
+    if (orderType !== 'DINE_IN') return;
+
+    // Check URL search params for table
+    let tableToQuery = selectedTableNumber;
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlTable = params.get('table');
+      if (urlTable && urlTable !== selectedTableNumber) {
+        setTable(urlTable);
+        tableToQuery = urlTable;
+      }
+    }
+
+    if (!tableToQuery) return;
 
     async function checkActiveTableOrder() {
       try {
-        const res = await fetch(`/api/pos/orders?tableNumber=${selectedTableNumber}&status=PREPARING`);
+        const res = await fetch(`/api/pos/orders?tableNumber=${tableToQuery}`);
         const data = await res.json();
         if (data.success && data.orders && data.orders.length > 0) {
           const activeOrder = data.orders[0];
-          setCurrentOrderData(activeOrder);
-          loadOrder(activeOrder);
-          toast.info(`Loaded running bill for Table ${selectedTableNumber} (${activeOrder.orderNumber})`);
+          // If cart is empty or belongs to a different order, load the active table order
+          if (cart.length === 0 || currentOrderData?.id !== activeOrder.id || currentOrderData?.tableNumber !== tableToQuery) {
+            setCurrentOrderData(activeOrder);
+            loadOrder(activeOrder);
+            toast.info(`Loaded running bill for Table ${tableToQuery} (${activeOrder.orderNumber})`);
+          }
+        } else if (cart.length === 0 || currentOrderData?.tableNumber !== tableToQuery) {
+          setCurrentOrderData(null);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to check active table order:', e);
+      }
     }
 
     checkActiveTableOrder();
@@ -694,10 +714,19 @@ export default function PosBillingPage() {
             variant="ghost"
             size="sm"
             onClick={() => router.push('/dashboard')}
-            className="rounded-xl text-xs font-bold gap-1 text-orange-600 hover:bg-orange-50 px-2 shrink-0"
+            className="rounded-xl text-xs font-bold gap-2 text-foreground hover:bg-orange-50 px-2 shrink-0"
           >
-            <Store className="h-4 w-4" />
-            <span className="hidden sm:inline">RestoDesk</span>
+            <div className="h-7 w-7 rounded-lg bg-white p-0.5 shadow-xs border border-orange-200/80 flex items-center justify-center shrink-0 overflow-hidden">
+              <Image
+                src="/logo.png"
+                alt="RestoDesk Logo"
+                width={28}
+                height={28}
+                className="h-full w-full object-contain"
+                priority
+              />
+            </div>
+            <span className="hidden sm:inline font-extrabold text-foreground">RestoDesk</span>
           </Button>
 
           {/* Table Selector */}
@@ -706,7 +735,12 @@ export default function PosBillingPage() {
               <span className="text-muted-foreground hidden sm:inline">Table:</span>
               <select
                 value={selectedTableNumber}
-                onChange={(e) => setTable(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  clearCart();
+                  setCurrentOrderData(null);
+                  setTable(val);
+                }}
                 className="bg-transparent font-black text-foreground outline-none cursor-pointer text-xs"
               >
                 {Array.from({ length: 20 }, (_, i) => {

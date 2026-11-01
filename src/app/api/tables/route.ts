@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
       const dbTables = await prisma.table.findMany({
         where: whereClause,
-        include: { section: true, currentOrder: true },
+        include: { section: true, currentOrder: { include: { customer: true } } },
       });
 
       if (dbTables.length > 0) {
@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
           runningAmount: t.currentOrder?.totalAmount || 0,
           seatedAt: t.currentOrder?.createdAt || null,
           currentOrderId: t.currentOrderId,
+          guestName: t.currentOrder?.customer?.name || null,
         }));
       }
     } catch (err) {}

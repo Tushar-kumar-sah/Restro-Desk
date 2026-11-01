@@ -37,7 +37,7 @@ import { toast } from 'sonner';
 
 export default function TableManagementPage() {
   const router = useRouter();
-  const { setTable, setOrderType } = usePosStore();
+  const { setTable, setOrderType, clearCart, loadOrder } = usePosStore();
 
   const [sections, setSections] = useState<any[]>([]);
   const [tables, setTables] = useState<any[]>([]);
@@ -805,9 +805,11 @@ export default function TableManagementPage() {
         onOpenChange={(open) => !open && setSelectedTableDetails(null)}
       >
         <DialogContent className="max-w-md sm:rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Table {selectedTableDetails?.tableNumber} Details</span>
+          <DialogHeader className="pr-8">
+            <div className="flex items-center gap-2.5">
+              <DialogTitle className="text-base sm:text-lg font-bold">
+                Table {selectedTableDetails?.tableNumber} Details
+              </DialogTitle>
               <Badge
                 variant={
                   selectedTableDetails?.status === 'RUNNING'
@@ -820,7 +822,7 @@ export default function TableManagementPage() {
               >
                 {selectedTableDetails?.status}
               </Badge>
-            </DialogTitle>
+            </div>
             <DialogDescription>
               {selectedTableDetails?.sectionName} • {selectedTableDetails?.capacity} Seats
             </DialogDescription>
@@ -856,8 +858,9 @@ export default function TableManagementPage() {
                   onClick={() => {
                     setTable(selectedTableDetails.tableNumber, selectedTableDetails.id);
                     setOrderType('DINE_IN');
+                    clearCart();
                     setSelectedTableDetails(null);
-                    router.push('/pos');
+                    router.push(`/pos?table=${selectedTableDetails.tableNumber}`);
                   }}
                   className="w-full bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold shadow-sm"
                 >
@@ -869,11 +872,23 @@ export default function TableManagementPage() {
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setTable(selectedTableDetails.tableNumber, selectedTableDetails.id);
+                  onClick={async () => {
+                    const tbl = selectedTableDetails;
+                    setTable(tbl.tableNumber, tbl.id);
                     setOrderType('DINE_IN');
+                    try {
+                      const res = await fetch(`/api/pos/orders?tableNumber=${tbl.tableNumber}`);
+                      const data = await res.json();
+                      if (data.success && data.orders && data.orders.length > 0) {
+                        loadOrder(data.orders[0]);
+                      } else {
+                        clearCart();
+                      }
+                    } catch (e) {
+                      clearCart();
+                    }
                     setSelectedTableDetails(null);
-                    router.push('/pos');
+                    router.push(`/pos?table=${tbl.tableNumber}`);
                   }}
                   className="rounded-xl text-xs font-semibold"
                 >
@@ -882,11 +897,23 @@ export default function TableManagementPage() {
                 </Button>
 
                 <Button
-                  onClick={() => {
-                    setTable(selectedTableDetails.tableNumber, selectedTableDetails.id);
+                  onClick={async () => {
+                    const tbl = selectedTableDetails;
+                    setTable(tbl.tableNumber, tbl.id);
                     setOrderType('DINE_IN');
+                    try {
+                      const res = await fetch(`/api/pos/orders?tableNumber=${tbl.tableNumber}`);
+                      const data = await res.json();
+                      if (data.success && data.orders && data.orders.length > 0) {
+                        loadOrder(data.orders[0]);
+                      } else {
+                        clearCart();
+                      }
+                    } catch (e) {
+                      clearCart();
+                    }
                     setSelectedTableDetails(null);
-                    router.push('/pos');
+                    router.push(`/pos?table=${tbl.tableNumber}`);
                   }}
                   className="bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-semibold shadow-sm"
                 >

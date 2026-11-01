@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   Star,
   CheckCircle2,
@@ -109,8 +110,15 @@ export default function PublicReviewPage({
       <div className="w-full max-w-lg space-y-6">
         {/* Restaurant Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-600 text-white shadow-md">
-            <UtensilsCrossed className="h-6 w-6" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white p-1.5 shadow-md border border-slate-200">
+            <Image
+              src="/logo.png"
+              alt="RestoDesk Logo"
+              width={56}
+              height={56}
+              className="h-full w-full object-contain"
+              priority
+            />
           </div>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">RestoDesk Dining</h1>

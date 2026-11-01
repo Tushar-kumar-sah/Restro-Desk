@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Store,
@@ -115,8 +116,15 @@ export default function SetupWizardPage() {
         {/* Brand Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-600 text-white font-bold shadow-md">
-              RD
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1 shadow-sm border border-orange-200 shrink-0 overflow-hidden">
+              <Image
+                src="/logo.png"
+                alt="RestoDesk Logo"
+                width={44}
+                height={44}
+                className="h-full w-full object-contain"
+                priority
+              />
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-foreground">

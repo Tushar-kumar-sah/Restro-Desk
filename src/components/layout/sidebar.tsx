@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Logo } from '@/components/ui/logo';
 import {
   Receipt,
   LayoutGrid,
@@ -233,36 +234,13 @@ export function Sidebar() {
       {/* Brand Header */}
       <div className="flex h-16 items-center justify-between border-b px-4">
         <Link href="/dashboard" scroll={false} className="flex items-center gap-3 overflow-hidden">
-          {/* Original RestoDesk SVG Logo */}
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-md shadow-orange-500/20">
-            <svg
-              className="h-6 w-6"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 10h18M3 14h18" />
-              <path d="M12 4v16" />
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <circle cx="12" cy="12" r="2" fill="currentColor" />
-            </svg>
-          </div>
-          {!isSidebarCollapsed && (
-            <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-foreground flex items-center gap-1.5">
-                RestoDesk
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400">
-                  POS
-                </span>
-              </span>
-              <span className="text-[11px] text-muted-foreground truncate">
-                Restaurant Operating System
-              </span>
-            </div>
-          )}
+          <Logo
+            size="md"
+            showText={!isSidebarCollapsed}
+            tag="POS"
+            subtitle="Restaurant Operating System"
+            priority
+          />
         </Link>
 
         {!isSidebarCollapsed && (

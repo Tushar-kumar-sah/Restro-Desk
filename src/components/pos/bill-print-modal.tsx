@@ -260,9 +260,7 @@ export function BillPrintModal({ isOpen, onClose, order }: BillPrintModalProps) 
               {/* Top Tax Invoice Banner */}
               <div className="border-b-2 border-black pb-4 mb-4 flex justify-between items-start">
                 <div>
-                  <h1 className="text-2xl font-black tracking-wide text-orange-600 uppercase">
-                    RestoDesk
-                  </h1>
+                  <img src="/logo.png" alt="RestoDesk Logo" className="h-11 w-auto object-contain mb-1.5" />
                   <h2 className="font-bold text-sm text-gray-900 uppercase">
                     {selectedOutlet?.name || 'Indiranagar Flagship'}
                   </h2>

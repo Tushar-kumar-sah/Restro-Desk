@@ -7,6 +7,7 @@ import { X, ChevronDown, ChevronRight, Store } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Logo } from '@/components/ui/logo';
 import { NAV_GROUPS, isNavItemActive } from './sidebar';
 
 export function MobileSidebarDrawer() {
@@ -70,33 +71,13 @@ export function MobileSidebarDrawer() {
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 overflow-hidden"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-md shadow-orange-500/20">
-              <svg
-                className="h-6 w-6"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 10h18M3 14h18" />
-                <path d="M12 4v16" />
-                <rect x="3" y="4" width="18" height="16" rx="2" />
-                <circle cx="12" cy="12" r="2" fill="currentColor" />
-              </svg>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-lg text-foreground flex items-center gap-1.5">
-                RestoDesk
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400">
-                  POS
-                </span>
-              </span>
-              <span className="text-[11px] text-muted-foreground truncate">
-                {selectedOutlet?.name || 'Restaurant Operating System'}
-              </span>
-            </div>
+            <Logo
+              size="md"
+              showText
+              tag="POS"
+              subtitle={selectedOutlet?.name || 'Restaurant Operating System'}
+              priority
+            />
           </Link>
 
           <button

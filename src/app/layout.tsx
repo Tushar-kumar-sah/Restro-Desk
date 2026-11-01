@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   description:
     "Next-generation Restaurant Management Platform: POS, Table Layout, Kitchen Display System, Multi-outlet Menu, Inventory, CRM & Loyalty.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export const viewport: Viewport = {

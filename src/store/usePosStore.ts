@@ -207,21 +207,29 @@ export const usePosStore = create<PosState>()(
 
       loadOrder: (order) => {
         const cartItems: CartItem[] = (order.items || []).map((i: any, idx: number) => ({
-          cartItemId: `${i.itemId || i.id}-${idx}`,
-          itemId: i.itemId || i.id,
+          cartItemId: `${i.itemId || i.id || 'item'}-${idx}`,
+          itemId: i.itemId || i.id || `item-${idx}`,
           name: i.name,
           foodType: i.foodType || 'VEG',
-          unitPrice: i.unitPrice,
-          quantity: i.quantity,
-          lineTotal: i.totalPrice || i.unitPrice * i.quantity,
+          unitPrice: Number(i.unitPrice) || 0,
+          quantity: Number(i.quantity) || 1,
+          lineTotal: Number(i.totalPrice) || (Number(i.unitPrice) || 0) * (Number(i.quantity) || 1),
         }));
 
         set({
           cart: cartItems,
-          orderType: order.orderType,
-          selectedTableNumber: order.tableNumber || 'T-01',
-          discountValue: order.discountAmount || 0,
+          orderType: order.orderType || 'DINE_IN',
+          selectedTableNumber: order.tableNumber || get().selectedTableNumber || 'T-01',
+          discountValue: Number(order.discountAmount) || 0,
           discountType: 'FLAT',
+          customer: order.customerName ? {
+            name: order.customerName,
+            phone: order.customerPhone || '',
+            points: 0,
+            walletBalance: 0,
+            tier: 'BRONZE',
+            visits: 1,
+          } : null,
         });
       },
 

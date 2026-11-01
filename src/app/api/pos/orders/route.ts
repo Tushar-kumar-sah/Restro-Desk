@@ -77,14 +77,19 @@ export async function GET(req: NextRequest) {
       const whereClause: any = { isDeleted: false };
       if (brandId && !brandId.startsWith('brand-')) whereClause.brandId = brandId;
       if (outletId && !outletId.startsWith('outlet-')) whereClause.outletId = outletId;
-      if (status && status !== 'ALL') whereClause.status = status as OrderStatus;
+      if (status && status !== 'ALL') {
+        whereClause.status = status as OrderStatus;
+      } else if (tableNumber) {
+        // Return active dining orders for this table
+        whereClause.status = { notIn: ['COMPLETED', 'CANCELLED', 'VOID'] };
+      }
       if (orderType && orderType !== 'ALL') whereClause.orderType = orderType as OrderType;
       if (tableNumber) whereClause.table = { tableNumber };
 
       const dbOrders = await prisma.order.findMany({
         where: whereClause,
         include: {
-          items: { include: { addons: true } },
+          items: { include: { addons: true, item: true } },
           kots: true,
           table: true,
           customer: true,
@@ -120,10 +125,13 @@ export async function GET(req: NextRequest) {
           kotNumber: o.kots[0]?.kotNumber || '',
           createdAt: o.createdAt,
           items: o.items.map((i) => ({
+            id: i.id,
+            itemId: i.itemId,
             name: i.name,
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             totalPrice: i.totalPrice,
+            foodType: i.item?.foodType || 'VEG',
           })),
         }));
       }
@@ -132,11 +140,14 @@ export async function GET(req: NextRequest) {
     }
 
     if (orders.length === 0) {
-      orders = MOCK_ORDERS;
-    }
-
-    if (tableNumber) {
-      orders = orders.filter((o) => o.tableNumber === tableNumber);
+      let filtered = [...MOCK_ORDERS];
+      if (tableNumber) {
+        filtered = filtered.filter((o) => o.tableNumber === tableNumber);
+      }
+      if (status && status !== 'ALL') {
+        filtered = filtered.filter((o) => o.status === status);
+      }
+      orders = filtered;
     }
 
     return NextResponse.json({ success: true, orders });

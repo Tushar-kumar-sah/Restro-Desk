@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Store,
@@ -122,6 +123,19 @@ export function Topbar() {
         >
           <Menu className="h-5 w-5" />
         </button>
+
+        {/* Mobile Brand Logo */}
+        <div className="lg:hidden flex items-center shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-white p-0.5 shadow-xs border border-orange-200/80 flex items-center justify-center shrink-0 overflow-hidden">
+            <Image
+              src="/logo.png"
+              alt="RestoDesk Logo"
+              width={32}
+              height={32}
+              className="h-full w-full object-contain"
+            />
+          </div>
+        </div>
 
         {/* Outlet Switcher Dropdown */}
         <div className="relative min-w-0">

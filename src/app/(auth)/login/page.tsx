@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
@@ -134,22 +135,16 @@ export default function LoginPage() {
         <div className="absolute -left-20 -bottom-20 h-80 w-80 rounded-full bg-black/10 blur-xl" />
 
         {/* Brand Top */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-orange-600 shadow-xl font-bold">
-            <svg
-              className="h-7 w-7"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 10h18M3 14h18" />
-              <path d="M12 4v16" />
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <circle cx="12" cy="12" r="2" fill="currentColor" />
-            </svg>
+        <div className="relative z-10 flex items-center gap-3.5">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white p-1.5 shadow-xl shrink-0 border border-white/30">
+            <Image
+              src="/logo.png"
+              alt="RestoDesk Logo"
+              width={56}
+              height={56}
+              priority
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">RestoDesk</h1>
@@ -197,8 +192,17 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-md space-y-8">
           {/* Header */}
           <div className="space-y-2 text-center md:text-left">
-            <div className="inline-flex md:hidden h-10 w-10 items-center justify-center rounded-xl bg-orange-600 text-white font-bold mb-2">
-              RD
+            <div className="flex md:hidden justify-center mb-3">
+              <div className="h-14 w-14 rounded-2xl bg-white p-1.5 shadow-md border border-orange-200 flex items-center justify-center">
+                <Image
+                  src="/logo.png"
+                  alt="RestoDesk Logo"
+                  width={56}
+                  height={56}
+                  priority
+                  className="h-full w-full object-contain"
+                />
+              </div>
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-foreground">
               Sign in to your restaurant
